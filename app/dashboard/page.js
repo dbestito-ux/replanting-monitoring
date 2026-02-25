@@ -28,7 +28,7 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     const { data } = await supabase
-      .from("monitoring")
+      .from("replanting_records")
       .select("*")
       .order("tanggal", { ascending: false });
 
