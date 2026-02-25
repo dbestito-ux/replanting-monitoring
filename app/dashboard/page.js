@@ -9,6 +9,39 @@ export default function Dashboard() {
   const router = useRouter();
   const [session, setSession] = useState(null);
   const [data, setData] = useState([]);
+  // ==========================
+// HITUNG MTD & YTD
+// ==========================
+
+const now = new Date();
+const currentMonth = now.getMonth();
+const currentYear = now.getFullYear();
+
+const mtd = data
+  ?.filter((item) => {
+    if (!item.tanggal) return false;
+
+    const d = new Date(item.tanggal);
+    return (
+      d.getMonth() === currentMonth &&
+      d.getFullYear() === currentYear
+    );
+  })
+  .reduce((sum, item) => {
+    return sum + Number(item.output_kerja || 0);
+  }, 0);
+
+const ytd = data
+  ?.filter((item) => {
+    if (!item.tanggal) return false;
+
+    const d = new Date(item.tanggal);
+    return d.getFullYear() === currentYear;
+  })
+  .reduce((sum, item) => {
+    return sum + Number(item.output_kerja || 0);
+  }, 0);
+  
   const [role, setRole] = useState("");
 
   useEffect(() => {
