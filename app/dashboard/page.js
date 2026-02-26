@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -52,17 +54,14 @@ export default function Dashboard() {
       temp = temp.filter((item) => {
         const itemDate = new Date(item.tanggal);
 
-        if (datePreset === "today") {
+        if (datePreset === "today")
           return itemDate.toDateString() === today.toDateString();
-        }
 
-        if (datePreset === "month") {
+        if (datePreset === "month")
           return itemDate >= firstDayMonth;
-        }
 
-        if (datePreset === "year") {
+        if (datePreset === "year")
           return itemDate >= firstDayYear;
-        }
 
         if (datePreset === "week") {
           const firstDayWeek = new Date();
@@ -87,8 +86,6 @@ export default function Dashboard() {
     setFilteredData(temp);
   };
 
-  // ===== SUMMARY =====
-
   const totalMTD = filteredData
     .filter((item) => new Date(item.tanggal) >= firstDayMonth)
     .reduce((acc, curr) => acc + Number(curr.output_kerja), 0);
@@ -96,36 +93,6 @@ export default function Dashboard() {
   const totalYTD = filteredData
     .filter((item) => new Date(item.tanggal) >= firstDayYear)
     .reduce((acc, curr) => acc + Number(curr.output_kerja), 0);
-
-  // ===== REKAP PER JENIS =====
-
-  const rekapJenis = Object.values(
-    filteredData.reduce((acc, item) => {
-      if (!acc[item.jenis_pekerjaan]) {
-        acc[item.jenis_pekerjaan] = {
-          jenis: item.jenis_pekerjaan,
-          total: 0,
-        };
-      }
-      acc[item.jenis_pekerjaan].total += Number(item.output_kerja);
-      return acc;
-    }, {})
-  );
-
-  // ===== REKAP PER FIELD =====
-
-  const rekapField = Object.values(
-    filteredData.reduce((acc, item) => {
-      if (!acc[item.field]) {
-        acc[item.field] = {
-          field: item.field,
-          total: 0,
-        };
-      }
-      acc[item.field].total += Number(item.output_kerja);
-      return acc;
-    }, {})
-  );
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -135,6 +102,31 @@ export default function Dashboard() {
   const handleDelete = async (id) => {
     await supabase.from("replanting_records").delete().eq("id", id);
     fetchData();
+  };
+
+  // ===== EXPORT FUNCTION =====
+  const handleExport = () => {
+    const exportData = filteredData.map((item) => ({
+      Tanggal: item.tanggal,
+      Jenis: item.jenis_pekerjaan,
+      Field: item.field,
+      Output: item.output_kerja,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Monitoring");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
+    const file = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    saveAs(file, "Monitoring_Replanting.xlsx");
   };
 
   return (
@@ -150,6 +142,14 @@ export default function Dashboard() {
           >
             + Input Data
           </button>
+
+          <button
+            onClick={handleExport}
+            className="bg-green-600 px-4 py-2 rounded"
+          >
+            Export Excel
+          </button>
+
           <button
             onClick={handleLogout}
             className="border border-red-500 text-red-500 px-4 py-2 rounded"
@@ -192,8 +192,8 @@ export default function Dashboard() {
           <option value="all">Semua Tanggal</option>
           <option value="today">Today</option>
           <option value="week">Minggu Ini</option>
-          <option value="month">Bulan Ini (MTD)</option>
-          <option value="year">Tahun Ini (YTD)</option>
+          <option value="month">Bulan Ini</option>
+          <option value="year">Tahun Ini</option>
         </select>
 
         <input
@@ -220,32 +220,6 @@ export default function Dashboard() {
         <div className="bg-zinc-900 p-6 rounded">
           <p className="text-zinc-400">YTD</p>
           <h2 className="text-3xl font-bold">{totalYTD}</h2>
-        </div>
-      </div>
-
-      {/* REKAP PER JENIS */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Rekap per Jenis</h2>
-        <div className="grid grid-cols-3 gap-4">
-          {rekapJenis.map((item) => (
-            <div key={item.jenis} className="bg-zinc-900 p-4 rounded">
-              <p className="text-zinc-400">{item.jenis}</p>
-              <h3 className="text-xl font-bold">{item.total}</h3>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* REKAP PER FIELD */}
-      <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-3">Rekap per Field</h2>
-        <div className="grid grid-cols-3 gap-4">
-          {rekapField.map((item) => (
-            <div key={item.field} className="bg-zinc-900 p-4 rounded">
-              <p className="text-zinc-400">{item.field}</p>
-              <h3 className="text-xl font-bold">{item.total}</h3>
-            </div>
-          ))}
         </div>
       </div>
 
