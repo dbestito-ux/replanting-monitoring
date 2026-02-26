@@ -136,19 +136,32 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex gap-3">
-          <button
-            onClick={handleExport}
-            className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700"
-          >
-            Export Excel
-          </button>
-          <button
-            onClick={handleLogout}
-            className="border border-red-500 px-4 py-2 rounded-lg text-red-500 hover:bg-red-500 hover:text-white"
-          >
-            Logout
-          </button>
-        </div>
+
+  {/* INPUT DATA */}
+  <button
+    onClick={() => router.push("/input")}
+    className="bg-white text-black px-4 py-2 rounded-lg hover:bg-gray-200"
+  >
+    + Input Data
+  </button>
+
+  {/* EXPORT */}
+  <button
+    onClick={handleExport}
+    className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700"
+  >
+    Export Excel
+  </button>
+
+  {/* LOGOUT */}
+  <button
+    onClick={handleLogout}
+    className="border border-red-500 px-4 py-2 rounded-lg text-red-500 hover:bg-red-500 hover:text-white"
+  >
+    Logout
+  </button>
+
+</div>
       </div>
 
       {/* FILTER */}
