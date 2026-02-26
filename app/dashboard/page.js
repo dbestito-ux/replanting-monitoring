@@ -4,274 +4,262 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 export default function Dashboard() {
   const router = useRouter();
 
   const [data, setData] = useState([]);
-  const [session, setSession] = useState(null);
+  const [filteredData, setFilteredData] = useState([]);
 
-  const [selectedField, setSelectedField] = useState("");
-  const [selectedJenis, setSelectedJenis] = useState("");
+  const [fieldFilter, setFieldFilter] = useState("");
+  const [jenisFilter, setJenisFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  useEffect(() => {
-    getSession();
-    fetchData();
-  }, []);
+  const [mtd, setMtd] = useState(0);
+  const [ytd, setYtd] = useState(0);
 
-  const getSession = async () => {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
-      router.push("/login");
-    } else {
-      setSession(data.session);
-    }
-  };
-
+  // ================= FETCH DATA =================
   const fetchData = async () => {
     const { data, error } = await supabase
       .from("replanting_records")
       .select("*")
       .order("tanggal", { ascending: false });
 
-    if (!error) setData(data);
+    if (!error) {
+      setData(data);
+      setFilteredData(data);
+    }
   };
 
-  // ==============================
-  // FILTER LOGIC
-  // ==============================
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const filteredData = data.filter((item) => {
-    const matchField = selectedField
-      ? item.field === selectedField
-      : true;
+  // ================= FILTER =================
+  useEffect(() => {
+    let temp = [...data];
 
-    const matchJenis = selectedJenis
-      ? item.jenis_pekerjaan === selectedJenis
-      : true;
+    if (fieldFilter)
+      temp = temp.filter((item) => item.field === fieldFilter);
 
-    const matchStart = startDate
-      ? new Date(item.tanggal) >= new Date(startDate)
-      : true;
+    if (jenisFilter)
+      temp = temp.filter((item) => item.jenis_pekerjaan === jenisFilter);
 
-    const matchEnd = endDate
-      ? new Date(item.tanggal) <= new Date(endDate)
-      : true;
+    if (startDate)
+      temp = temp.filter((item) => item.tanggal >= startDate);
 
-    return matchField && matchJenis && matchStart && matchEnd;
+    if (endDate)
+      temp = temp.filter((item) => item.tanggal <= endDate);
+
+    setFilteredData(temp);
+
+    calculateMTDYTD(temp);
+  }, [fieldFilter, jenisFilter, startDate, endDate, data]);
+
+  // ================= MTD & YTD =================
+  const calculateMTDYTD = (dataset) => {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+
+    let mtdTotal = 0;
+    let ytdTotal = 0;
+
+    dataset.forEach((item) => {
+      const itemDate = new Date(item.tanggal);
+
+      if (
+        itemDate.getMonth() === month &&
+        itemDate.getFullYear() === year
+      ) {
+        mtdTotal += Number(item.output_kerja);
+      }
+
+      if (itemDate.getFullYear() === year) {
+        ytdTotal += Number(item.output_kerja);
+      }
+    });
+
+    setMtd(mtdTotal);
+    setYtd(ytdTotal);
+  };
+
+  // ================= DELETE =================
+  const handleDelete = async (id) => {
+    if (!confirm("Yakin ingin menghapus data ini?")) return;
+
+    await supabase.from("replanting_records").delete().eq("id", id);
+    fetchData();
+  };
+
+  // ================= EXPORT =================
+  const handleExport = () => {
+    const worksheet = XLSX.utils.json_to_sheet(filteredData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Monitoring");
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const fileData = new Blob([excelBuffer], {
+      type:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
+    });
+    saveAs(fileData, "Monitoring_Replanting.xlsx");
+  };
+
+  // ================= SUMMARY =================
+  const outputPerJenis = {};
+  const outputPerField = {};
+
+  filteredData.forEach((item) => {
+    outputPerJenis[item.jenis_pekerjaan] =
+      (outputPerJenis[item.jenis_pekerjaan] || 0) +
+      Number(item.output_kerja);
+
+    outputPerField[item.field] =
+      (outputPerField[item.field] || 0) +
+      Number(item.output_kerja);
   });
 
-  // ==============================
-  // MTD & YTD
-  // ==============================
-
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
-  const mtdTotal = filteredData
-    .filter((item) => {
-      const date = new Date(item.tanggal);
-      return (
-        date.getMonth() === currentMonth &&
-        date.getFullYear() === currentYear
-      );
-    })
-    .reduce((sum, item) => sum + Number(item.output_kerja || 0), 0);
-
-  const ytdTotal = filteredData
-    .filter((item) => {
-      const date = new Date(item.tanggal);
-      return date.getFullYear() === currentYear;
-    })
-    .reduce((sum, item) => sum + Number(item.output_kerja || 0), 0);
-
-  // ==============================
-  // SUMMARY PER JENIS
-  // ==============================
-
-  const summaryByJenis = filteredData.reduce((acc, item) => {
-    const key = item.jenis_pekerjaan;
-    acc[key] = (acc[key] || 0) + Number(item.output_kerja || 0);
-    return acc;
-  }, {});
-
-  // ==============================
-  // SUMMARY PER FIELD
-  // ==============================
-
-  const summaryByField = filteredData.reduce((acc, item) => {
-    const key = item.field;
-    acc[key] = (acc[key] || 0) + Number(item.output_kerja || 0);
-    return acc;
-  }, {});
-
-  // ==============================
-  // EXPORT EXCEL
-  // ==============================
-
-  const handleExport = () => {
-    const ws = XLSX.utils.json_to_sheet(filteredData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Replanting Data");
-    XLSX.writeFile(wb, "replanting-data.xlsx");
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  };
-
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <div className="flex justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">
-            Dashboard Monitoring Replanting
-          </h1>
-          <p className="text-zinc-400">
-            {session?.user?.email}
-          </p>
-        </div>
+    <div className="min-h-screen bg-black text-white p-6">
+
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">
+          Dashboard Monitoring Replanting
+        </h1>
+
         <div className="flex gap-3">
+          <button
+            onClick={() => router.push("/input")}
+            className="px-4 py-2 bg-white text-black rounded-lg"
+          >
+            + Input Data
+          </button>
 
-  {/* INPUT DATA */}
-  <button
-    onClick={() => router.push("/input")}
-    className="bg-white text-black px-4 py-2 rounded-lg hover:bg-gray-200"
-  >
-    + Input Data
-  </button>
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 bg-green-600 rounded-lg"
+          >
+            Export Excel
+          </button>
 
-  {/* EXPORT */}
-  <button
-    onClick={handleExport}
-    className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700"
-  >
-    Export Excel
-  </button>
-
-  {/* LOGOUT */}
-  <button
-    onClick={handleLogout}
-    className="border border-red-500 px-4 py-2 rounded-lg text-red-500 hover:bg-red-500 hover:text-white"
-  >
-    Logout
-  </button>
-
-</div>
+          <button
+            onClick={() => router.push("/login")}
+            className="px-4 py-2 border border-red-500 text-red-500 rounded-lg"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* FILTER */}
       <div className="flex flex-wrap gap-4 mb-6">
-        <select
-          value={selectedField}
-          onChange={(e) => setSelectedField(e.target.value)}
-          className="bg-zinc-900 p-2 rounded"
-        >
-          <option value="">All Field</option>
-          {[...new Set(data.map((d) => d.field))].map((field) => (
-            <option key={field} value={field}>
-              {field}
-            </option>
-          ))}
-        </select>
+        <input
+          type="text"
+          placeholder="Filter Field"
+          value={fieldFilter}
+          onChange={(e) => setFieldFilter(e.target.value)}
+          className="bg-zinc-800 px-4 py-2 rounded-lg"
+        />
 
-        <select
-          value={selectedJenis}
-          onChange={(e) => setSelectedJenis(e.target.value)}
-          className="bg-zinc-900 p-2 rounded"
-        >
-          <option value="">All Jenis</option>
-          {[...new Set(data.map((d) => d.jenis_pekerjaan))].map((jenis) => (
-            <option key={jenis} value={jenis}>
-              {jenis}
-            </option>
-          ))}
-        </select>
+        <input
+          type="text"
+          placeholder="Filter Jenis"
+          value={jenisFilter}
+          onChange={(e) => setJenisFilter(e.target.value)}
+          className="bg-zinc-800 px-4 py-2 rounded-lg"
+        />
 
         <input
           type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="bg-zinc-900 p-2 rounded"
+          className="bg-zinc-800 px-4 py-2 rounded-lg"
         />
 
         <input
           type="date"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
-          className="bg-zinc-900 p-2 rounded"
+          className="bg-zinc-800 px-4 py-2 rounded-lg"
         />
       </div>
 
-      {/* KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      {/* MTD YTD */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-zinc-900 p-6 rounded-xl">
-          <p className="text-sm text-zinc-400">MTD</p>
-          <h2 className="text-3xl font-bold">{mtdTotal}</h2>
+          <p className="text-zinc-400">MTD</p>
+          <h2 className="text-3xl font-bold">{mtd}</h2>
         </div>
+
         <div className="bg-zinc-900 p-6 rounded-xl">
-          <p className="text-sm text-zinc-400">YTD</p>
-          <h2 className="text-3xl font-bold">{ytdTotal}</h2>
+          <p className="text-zinc-400">YTD</p>
+          <h2 className="text-3xl font-bold">{ytd}</h2>
         </div>
       </div>
 
-      {/* SUMMARY PER JENIS */}
+      {/* OUTPUT PER JENIS */}
       <div className="bg-zinc-900 p-6 rounded-xl mb-6">
-        <h3 className="text-lg font-semibold mb-4">
-          📊 Output per Jenis
-        </h3>
-        {Object.entries(summaryByJenis).map(([jenis, total]) => (
-          <div
-            key={jenis}
-            className="flex justify-between border-b border-zinc-700 py-2"
-          >
-            <span>{jenis}</span>
-            <span>{total}</span>
+        <h2 className="mb-4 font-semibold">📊 Output per Jenis</h2>
+        {Object.entries(outputPerJenis).map(([key, value]) => (
+          <div key={key} className="flex justify-between border-b border-zinc-800 py-2">
+            <span>{key}</span>
+            <span>{value}</span>
           </div>
         ))}
       </div>
 
-      {/* SUMMARY PER FIELD */}
+      {/* OUTPUT PER FIELD */}
       <div className="bg-zinc-900 p-6 rounded-xl mb-6">
-        <h3 className="text-lg font-semibold mb-4">
-          🗺 Output per Field
-        </h3>
-        {Object.entries(summaryByField).map(([field, total]) => (
-          <div
-            key={field}
-            className="flex justify-between border-b border-zinc-700 py-2"
-          >
-            <span>{field}</span>
-            <span>{total}</span>
+        <h2 className="mb-4 font-semibold">🗺 Output per Field</h2>
+        {Object.entries(outputPerField).map(([key, value]) => (
+          <div key={key} className="flex justify-between border-b border-zinc-800 py-2">
+            <span>{key}</span>
+            <span>{value}</span>
           </div>
         ))}
       </div>
 
       {/* TABLE */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border border-zinc-800">
-          <thead className="bg-zinc-900">
+      <div className="bg-zinc-900 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-zinc-800">
             <tr>
               <th className="p-3 text-left">Tanggal</th>
               <th className="p-3 text-left">Jenis</th>
               <th className="p-3 text-left">Field</th>
               <th className="p-3 text-left">Output</th>
+              <th className="p-3 text-left">Satuan</th>
+              <th className="p-3 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filteredData.map((item) => (
-              <tr
-                key={item.id}
-                className="border-t border-zinc-800"
-              >
+              <tr key={item.id} className="border-t border-zinc-800">
                 <td className="p-3">{item.tanggal}</td>
                 <td className="p-3">{item.jenis_pekerjaan}</td>
                 <td className="p-3">{item.field}</td>
                 <td className="p-3">{item.output_kerja}</td>
+                <td className="p-3">{item.satuan_output}</td>
+                <td className="p-3 text-right">
+                  <button
+                    onClick={() => router.push(`/edit/${item.id}`)}
+                    className="text-blue-400 mr-3"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(item.id)}
+                    className="text-red-400"
+                  >
+                    Hapus
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
