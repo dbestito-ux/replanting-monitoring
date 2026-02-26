@@ -11,7 +11,38 @@ export default function InputMonitoring() {
   const [jenis, setJenis] = useState("");
   const [field, setField] = useState("");
   const [output, setOutput] = useState("");
+  const [satuan, setSatuan] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // MASTER DATA (sementara hardcoded, nanti bisa kita tarik dari DB)
+  const jenisOptions = [
+    "Cambering",
+    "Chipping",
+    "Debolling",
+    "CECT",
+    "Fieldrain",
+    "Main Drain 1",
+    "Main Drain 2",
+    "Main Drain 3",
+    "Felling",
+    "Terrace",
+    "New Road",
+    "Leveling",
+    "Tanam Pokok",
+    "Lubang Tanam"
+  ];
+
+  const fieldOptions = [
+    "H003",
+    "H004",
+    "H005",
+    "J004",
+    "I005",
+    "F007",
+    "G006"
+  ];
+
+  const satuanOptions = ["ha", "pokok", "meter", "lubang"];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,6 +54,7 @@ export default function InputMonitoring() {
         jenis_pekerjaan: jenis,
         field,
         output_kerja: Number(output),
+        satuan_output: satuan, // pastikan kolom ini ada di database
       },
     ]);
 
@@ -62,56 +94,85 @@ export default function InputMonitoring() {
               value={tanggal}
               onChange={(e) => setTanggal(e.target.value)}
               required
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-600 outline-none"
             />
           </div>
 
-          {/* GRID 2 KOLOM */}
+          {/* GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
+            {/* JENIS */}
             <div>
               <label className="block text-sm mb-2 text-zinc-400">
                 Jenis Pekerjaan
               </label>
-              <input
-                type="text"
+              <select
                 value={jenis}
                 onChange={(e) => setJenis(e.target.value)}
                 required
-                placeholder="Contoh: Cambering"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-600 outline-none"
+              >
+                <option value="">-- Pilih Jenis --</option>
+                {jenisOptions.map((item, i) => (
+                  <option key={i} value={item}>{item}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* FIELD */}
+            <div>
+              <label className="block text-sm mb-2 text-zinc-400">
+                Field
+              </label>
+              <select
+                value={field}
+                onChange={(e) => setField(e.target.value)}
+                required
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-600 outline-none"
+              >
+                <option value="">-- Pilih Field --</option>
+                {fieldOptions.map((item, i) => (
+                  <option key={i} value={item}>{item}</option>
+                ))}
+              </select>
+            </div>
+
+          </div>
+
+          {/* OUTPUT + SATUAN */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div>
+              <label className="block text-sm mb-2 text-zinc-400">
+                Output Kerja
+              </label>
+              <input
+                type="number"
+                value={output}
+                onChange={(e) => setOutput(e.target.value)}
+                required
+                placeholder="Masukkan jumlah output"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-600 outline-none"
               />
             </div>
 
             <div>
               <label className="block text-sm mb-2 text-zinc-400">
-                Field
+                Satuan
               </label>
-              <input
-                type="text"
-                value={field}
-                onChange={(e) => setField(e.target.value)}
+              <select
+                value={satuan}
+                onChange={(e) => setSatuan(e.target.value)}
                 required
-                placeholder="Contoh: H004"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
-              />
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-600 outline-none"
+              >
+                <option value="">-- Pilih Satuan --</option>
+                {satuanOptions.map((item, i) => (
+                  <option key={i} value={item}>{item}</option>
+                ))}
+              </select>
             </div>
 
-          </div>
-
-          {/* OUTPUT */}
-          <div>
-            <label className="block text-sm mb-2 text-zinc-400">
-              Output Kerja
-            </label>
-            <input
-              type="number"
-              value={output}
-              onChange={(e) => setOutput(e.target.value)}
-              required
-              placeholder="Masukkan jumlah output"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
-            />
           </div>
 
           {/* BUTTON */}
