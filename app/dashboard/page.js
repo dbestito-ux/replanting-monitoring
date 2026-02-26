@@ -10,170 +10,187 @@ export default function Dashboard() {
   const router = useRouter();
 
   const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
+  const [user, setUser] = useState(null);
 
-  const [fieldFilter, setFieldFilter] = useState("");
-  const [jenisFilter, setJenisFilter] = useState("");
+  const [filterField, setFilterField] = useState("all");
+  const [filterJenis, setFilterJenis] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const [mtd, setMtd] = useState(0);
-  const [ytd, setYtd] = useState(0);
+  useEffect(() => {
+    getSession();
+    fetchData();
+  }, []);
 
-  // ================= FETCH DATA =================
-  const fetchData = async () => {
+  async function getSession() {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      router.push("/login");
+    } else {
+      setUser(data.session.user);
+    }
+  }
+
+  async function fetchData() {
     const { data, error } = await supabase
       .from("replanting_records")
       .select("*")
       .order("tanggal", { ascending: false });
 
-    if (!error) {
-      setData(data);
-      setFilteredData(data);
-    }
-  };
+    if (!error) setData(data);
+  }
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // ================= FILTER =================
-  useEffect(() => {
-    let temp = [...data];
-
-    if (fieldFilter)
-      temp = temp.filter((item) => item.field === fieldFilter);
-
-    if (jenisFilter)
-      temp = temp.filter((item) => item.jenis_pekerjaan === jenisFilter);
-
-    if (startDate)
-      temp = temp.filter((item) => item.tanggal >= startDate);
-
-    if (endDate)
-      temp = temp.filter((item) => item.tanggal <= endDate);
-
-    setFilteredData(temp);
-
-    calculateMTDYTD(temp);
-  }, [fieldFilter, jenisFilter, startDate, endDate, data]);
-
-  // ================= MTD & YTD =================
-  const calculateMTDYTD = (dataset) => {
-    const now = new Date();
-    const month = now.getMonth();
-    const year = now.getFullYear();
-
-    let mtdTotal = 0;
-    let ytdTotal = 0;
-
-    dataset.forEach((item) => {
-      const itemDate = new Date(item.tanggal);
-
-      if (
-        itemDate.getMonth() === month &&
-        itemDate.getFullYear() === year
-      ) {
-        mtdTotal += Number(item.output_kerja);
-      }
-
-      if (itemDate.getFullYear() === year) {
-        ytdTotal += Number(item.output_kerja);
-      }
-    });
-
-    setMtd(mtdTotal);
-    setYtd(ytdTotal);
-  };
-
-  // ================= DELETE =================
-  const handleDelete = async (id) => {
-    if (!confirm("Yakin ingin menghapus data ini?")) return;
-
+  async function handleDelete(id) {
     await supabase.from("replanting_records").delete().eq("id", id);
     fetchData();
-  };
+  }
 
-  // ================= EXPORT =================
-  const handleExport = () => {
-    const worksheet = XLSX.utils.json_to_sheet(filteredData);
+  function handleExport() {
+    const exportData = filteredData.map((item) => ({
+      Tanggal: item.tanggal,
+      Jenis: item.jenis_pekerjaan,
+      Field: item.field,
+      Output: item.output_kerja,
+      Satuan: item.satuan || "-"
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Monitoring");
+
     const excelBuffer = XLSX.write(workbook, {
       bookType: "xlsx",
-      type: "array",
+      type: "array"
     });
+
     const fileData = new Blob([excelBuffer], {
       type:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8"
     });
+
     saveAs(fileData, "Monitoring_Replanting.xlsx");
-  };
+  }
 
-  // ================= SUMMARY =================
+  /* ================= FILTER ================= */
+
+  const filteredData = data.filter((item) => {
+    const matchField =
+      filterField === "all" || item.field === filterField;
+
+    const matchJenis =
+      filterJenis === "all" || item.jenis_pekerjaan === filterJenis;
+
+    const matchStart =
+      !startDate || item.tanggal >= startDate;
+
+    const matchEnd =
+      !endDate || item.tanggal <= endDate;
+
+    return matchField && matchJenis && matchStart && matchEnd;
+  });
+
+  /* ================= MTD YTD ================= */
+
+  const today = new Date();
+
+  const mtd = filteredData
+    .filter((item) => {
+      const d = new Date(item.tanggal);
+      return (
+        d.getMonth() === today.getMonth() &&
+        d.getFullYear() === today.getFullYear()
+      );
+    })
+    .reduce((sum, item) => sum + Number(item.output_kerja), 0);
+
+  const ytd = filteredData
+    .filter((item) => {
+      const d = new Date(item.tanggal);
+      return d.getFullYear() === today.getFullYear();
+    })
+    .reduce((sum, item) => sum + Number(item.output_kerja), 0);
+
+  /* ================= OUTPUT PER JENIS ================= */
+
   const outputPerJenis = {};
-  const outputPerField = {};
-
   filteredData.forEach((item) => {
     outputPerJenis[item.jenis_pekerjaan] =
       (outputPerJenis[item.jenis_pekerjaan] || 0) +
       Number(item.output_kerja);
+  });
 
+  /* ================= OUTPUT PER FIELD ================= */
+
+  const outputPerField = {};
+  filteredData.forEach((item) => {
     outputPerField[item.field] =
       (outputPerField[item.field] || 0) +
       Number(item.output_kerja);
   });
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-
-      {/* HEADER */}
+    <div className="p-6 bg-black text-white min-h-screen">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">
-          Dashboard Monitoring Replanting
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold">
+            Dashboard Monitoring Replanting
+          </h1>
+          <p className="text-zinc-400 text-sm">
+            {user?.email}
+          </p>
+        </div>
 
         <div className="flex gap-3">
           <button
             onClick={() => router.push("/input")}
-            className="px-4 py-2 bg-white text-black rounded-lg"
+            className="bg-white text-black px-4 py-2 rounded-lg"
           >
             + Input Data
           </button>
 
           <button
             onClick={handleExport}
-            className="px-4 py-2 bg-green-600 rounded-lg"
+            className="bg-green-600 px-4 py-2 rounded-lg"
           >
             Export Excel
           </button>
 
           <button
-            onClick={() => router.push("/login")}
-            className="px-4 py-2 border border-red-500 text-red-500 rounded-lg"
+            onClick={() => {
+              supabase.auth.signOut();
+              router.push("/login");
+            }}
+            className="border border-red-500 text-red-500 px-4 py-2 rounded-lg"
           >
             Logout
           </button>
         </div>
       </div>
 
-      {/* FILTER */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <input
-          type="text"
-          placeholder="Filter Field"
-          value={fieldFilter}
-          onChange={(e) => setFieldFilter(e.target.value)}
-          className="bg-zinc-800 px-4 py-2 rounded-lg"
-        />
+      {/* ================= FILTER ================= */}
 
-        <input
-          type="text"
-          placeholder="Filter Jenis"
-          value={jenisFilter}
-          onChange={(e) => setJenisFilter(e.target.value)}
+      <div className="flex flex-wrap gap-4 mb-6">
+        <select
+          value={filterField}
+          onChange={(e) => setFilterField(e.target.value)}
           className="bg-zinc-800 px-4 py-2 rounded-lg"
-        />
+        >
+          <option value="all">All Field</option>
+          {[...new Set(data.map((item) => item.field))].map((field) => (
+            <option key={field}>{field}</option>
+          ))}
+        </select>
+
+        <select
+          value={filterJenis}
+          onChange={(e) => setFilterJenis(e.target.value)}
+          className="bg-zinc-800 px-4 py-2 rounded-lg"
+        >
+          <option value="all">All Jenis</option>
+          {[...new Set(data.map((item) => item.jenis_pekerjaan))].map((jenis) => (
+            <option key={jenis}>{jenis}</option>
+          ))}
+        </select>
 
         <input
           type="date"
@@ -190,81 +207,84 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* MTD YTD */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      {/* ================= MTD YTD ================= */}
+
+      <div className="grid grid-cols-2 gap-6 mb-6">
         <div className="bg-zinc-900 p-6 rounded-xl">
-          <p className="text-zinc-400">MTD</p>
-          <h2 className="text-3xl font-bold">{mtd}</h2>
+          <h2 className="text-zinc-400 text-sm">MTD</h2>
+          <p className="text-3xl font-bold">{mtd}</p>
         </div>
 
         <div className="bg-zinc-900 p-6 rounded-xl">
-          <p className="text-zinc-400">YTD</p>
-          <h2 className="text-3xl font-bold">{ytd}</h2>
+          <h2 className="text-zinc-400 text-sm">YTD</h2>
+          <p className="text-3xl font-bold">{ytd}</p>
         </div>
       </div>
 
-      {/* OUTPUT PER JENIS */}
+      {/* ================= OUTPUT PER JENIS ================= */}
+
       <div className="bg-zinc-900 p-6 rounded-xl mb-6">
-        <h2 className="mb-4 font-semibold">📊 Output per Jenis</h2>
-        {Object.entries(outputPerJenis).map(([key, value]) => (
-          <div key={key} className="flex justify-between border-b border-zinc-800 py-2">
-            <span>{key}</span>
-            <span>{value}</span>
+        <h2 className="font-semibold mb-4">📊 Output per Jenis</h2>
+        {Object.entries(outputPerJenis).map(([jenis, total]) => (
+          <div key={jenis} className="flex justify-between border-b border-zinc-800 py-2">
+            <span>{jenis}</span>
+            <span>{total}</span>
           </div>
         ))}
       </div>
 
-      {/* OUTPUT PER FIELD */}
+      {/* ================= OUTPUT PER FIELD ================= */}
+
       <div className="bg-zinc-900 p-6 rounded-xl mb-6">
-        <h2 className="mb-4 font-semibold">🗺 Output per Field</h2>
-        {Object.entries(outputPerField).map(([key, value]) => (
-          <div key={key} className="flex justify-between border-b border-zinc-800 py-2">
-            <span>{key}</span>
-            <span>{value}</span>
+        <h2 className="font-semibold mb-4">🗺 Output per Field</h2>
+        {Object.entries(outputPerField).map(([field, total]) => (
+          <div key={field} className="flex justify-between border-b border-zinc-800 py-2">
+            <span>{field}</span>
+            <span>{total}</span>
           </div>
         ))}
       </div>
 
-      {/* TABLE */}
-      <div className="bg-zinc-900 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-800">
-            <tr>
-              <th className="p-3 text-left">Tanggal</th>
-              <th className="p-3 text-left">Jenis</th>
-              <th className="p-3 text-left">Field</th>
-              <th className="p-3 text-left">Output</th>
-              <th className="p-3 text-left">Satuan</th>
-              <th className="p-3 text-right">Aksi</th>
+      {/* ================= TABLE ================= */}
+
+      <table className="w-full text-sm">
+        <thead className="bg-zinc-900">
+          <tr>
+            <th className="p-3 text-left">Tanggal</th>
+            <th className="p-3 text-left">Jenis</th>
+            <th className="p-3 text-left">Field</th>
+            <th className="p-3 text-left">Output</th>
+            <th className="p-3 text-left">Satuan</th>
+            <th className="p-3 text-right">Aksi</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {filteredData.map((item) => (
+            <tr key={item.id} className="border-b border-zinc-800">
+              <td className="p-3">{item.tanggal}</td>
+              <td className="p-3">{item.jenis_pekerjaan}</td>
+              <td className="p-3">{item.field}</td>
+              <td className="p-3">{item.output_kerja}</td>
+              <td className="p-3">{item.satuan}</td>
+              <td className="p-3 text-right">
+                <button
+                  onClick={() => router.push(`/edit/${item.id}`)}
+                  className="text-blue-400 mr-3"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="text-red-500"
+                >
+                  Hapus
+                </button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {filteredData.map((item) => (
-              <tr key={item.id} className="border-t border-zinc-800">
-                <td className="p-3">{item.tanggal}</td>
-                <td className="p-3">{item.jenis_pekerjaan}</td>
-                <td className="p-3">{item.field}</td>
-                <td className="p-3">{item.output_kerja}</td>
-                <td className="p-3">{item.satuan_output}</td>
-                <td className="p-3 text-right">
-                  <button
-                    onClick={() => router.push(`/edit/${item.id}`)}
-                    className="text-blue-400 mr-3"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-red-400"
-                  >
-                    Hapus
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
