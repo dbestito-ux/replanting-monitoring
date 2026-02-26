@@ -119,15 +119,31 @@ export default function Dashboard() {
     <div className="min-h-screen bg-black text-white p-4 sm:p-8">
 
       {/* MOBILE HEADER */}
-      <div className="sm:hidden sticky top-0 z-40 bg-black/90 backdrop-blur border-b border-zinc-800 p-4 mb-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-lg font-semibold">Monitoring Replanting</h1>
-          <p className="text-xs text-zinc-400">{session?.user?.email}</p>
-        </div>
-        <button onClick={() => supabase.auth.signOut()} className="text-red-400 text-sm">
-          Logout
-        </button>
-      </div>
+     {/* ===== MOBILE ACTION BUTTONS ===== */}
+<div className="sm:hidden mb-4 flex gap-2">
+
+  <button
+    onClick={() => router.push("/input")}
+    className="flex-1 bg-white text-black py-2 rounded-lg text-sm"
+  >
+    Input
+  </button>
+
+  <button
+    onClick={handleExport}
+    className="flex-1 bg-green-600 py-2 rounded-lg text-sm"
+  >
+    Export
+  </button>
+
+  <button
+    onClick={handleLogout}
+    className="flex-1 border border-red-500 text-red-400 py-2 rounded-lg text-sm"
+  >
+    Logout
+  </button>
+
+</div>
 
       {/* DESKTOP HEADER */}
       <div className="hidden sm:flex justify-between items-center mb-6">
