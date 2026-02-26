@@ -87,6 +87,8 @@ export default function Dashboard() {
     setFilteredData(temp);
   };
 
+  // ===== SUMMARY =====
+
   const totalMTD = filteredData
     .filter((item) => new Date(item.tanggal) >= firstDayMonth)
     .reduce((acc, curr) => acc + Number(curr.output_kerja), 0);
@@ -94,6 +96,36 @@ export default function Dashboard() {
   const totalYTD = filteredData
     .filter((item) => new Date(item.tanggal) >= firstDayYear)
     .reduce((acc, curr) => acc + Number(curr.output_kerja), 0);
+
+  // ===== REKAP PER JENIS =====
+
+  const rekapJenis = Object.values(
+    filteredData.reduce((acc, item) => {
+      if (!acc[item.jenis_pekerjaan]) {
+        acc[item.jenis_pekerjaan] = {
+          jenis: item.jenis_pekerjaan,
+          total: 0,
+        };
+      }
+      acc[item.jenis_pekerjaan].total += Number(item.output_kerja);
+      return acc;
+    }, {})
+  );
+
+  // ===== REKAP PER FIELD =====
+
+  const rekapField = Object.values(
+    filteredData.reduce((acc, item) => {
+      if (!acc[item.field]) {
+        acc[item.field] = {
+          field: item.field,
+          total: 0,
+        };
+      }
+      acc[item.field].total += Number(item.output_kerja);
+      return acc;
+    }, {})
+  );
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -107,6 +139,8 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 text-white bg-black min-h-screen">
+
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Dashboard Monitoring Replanting</h1>
         <div className="flex gap-3">
@@ -125,7 +159,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* FILTER SECTION */}
+      {/* FILTER */}
       <div className="grid grid-cols-5 gap-4 mb-6">
 
         <select
@@ -189,6 +223,32 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* REKAP PER JENIS */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">Rekap per Jenis</h2>
+        <div className="grid grid-cols-3 gap-4">
+          {rekapJenis.map((item) => (
+            <div key={item.jenis} className="bg-zinc-900 p-4 rounded">
+              <p className="text-zinc-400">{item.jenis}</p>
+              <h3 className="text-xl font-bold">{item.total}</h3>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* REKAP PER FIELD */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">Rekap per Field</h2>
+        <div className="grid grid-cols-3 gap-4">
+          {rekapField.map((item) => (
+            <div key={item.field} className="bg-zinc-900 p-4 rounded">
+              <p className="text-zinc-400">{item.field}</p>
+              <h3 className="text-xl font-bold">{item.total}</h3>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* TABLE */}
       <table className="w-full border border-zinc-800">
         <thead className="bg-zinc-900">
@@ -219,6 +279,7 @@ export default function Dashboard() {
           ))}
         </tbody>
       </table>
+
     </div>
   );
 }
