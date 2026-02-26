@@ -271,7 +271,7 @@ export default function Dashboard() {
                 <td className="p-3">{item.jenis_pekerjaan}</td>
                 <td className="p-3">{item.field}</td>
                 <td className="p-3">{item.output_kerja}</td>
-                <td className="p-3">{item.satuan}</td>
+                <td className="p-3">{item.satuan_output}</td>
                 <td className="p-3 text-right">
                   <button
                     onClick={() => handleDelete(item.id)}
