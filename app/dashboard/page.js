@@ -1,158 +1,150 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
 export default function Dashboard() {
   const router = useRouter();
 
   const [data, setData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
+  const [session, setSession] = useState(null);
 
-  const [fieldFilter, setFieldFilter] = useState("");
-  const [jenisFilter, setJenisFilter] = useState("");
-  const [datePreset, setDatePreset] = useState("all");
+  const [selectedField, setSelectedField] = useState("");
+  const [selectedJenis, setSelectedJenis] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const today = new Date();
-  const firstDayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const firstDayYear = new Date(today.getFullYear(), 0, 1);
-
   useEffect(() => {
+    getSession();
     fetchData();
   }, []);
 
-  useEffect(() => {
-    applyFilter();
-  }, [data, fieldFilter, jenisFilter, datePreset, startDate, endDate]);
+  const getSession = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      router.push("/login");
+    } else {
+      setSession(data.session);
+    }
+  };
 
   const fetchData = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("replanting_records")
       .select("*")
       .order("tanggal", { ascending: false });
 
-    setData(data || []);
+    if (!error) setData(data);
   };
 
-  const applyFilter = () => {
-    let temp = [...data];
+  // ==============================
+  // FILTER LOGIC
+  // ==============================
 
-    if (fieldFilter) {
-      temp = temp.filter((item) => item.field === fieldFilter);
-    }
+  const filteredData = data.filter((item) => {
+    const matchField = selectedField
+      ? item.field === selectedField
+      : true;
 
-    if (jenisFilter) {
-      temp = temp.filter((item) => item.jenis_pekerjaan === jenisFilter);
-    }
+    const matchJenis = selectedJenis
+      ? item.jenis_pekerjaan === selectedJenis
+      : true;
 
-    if (datePreset !== "all") {
-      temp = temp.filter((item) => {
-        const itemDate = new Date(item.tanggal);
+    const matchStart = startDate
+      ? new Date(item.tanggal) >= new Date(startDate)
+      : true;
 
-        if (datePreset === "today")
-          return itemDate.toDateString() === today.toDateString();
+    const matchEnd = endDate
+      ? new Date(item.tanggal) <= new Date(endDate)
+      : true;
 
-        if (datePreset === "month")
-          return itemDate >= firstDayMonth;
+    return matchField && matchJenis && matchStart && matchEnd;
+  });
 
-        if (datePreset === "year")
-          return itemDate >= firstDayYear;
+  // ==============================
+  // MTD & YTD
+  // ==============================
 
-        if (datePreset === "week") {
-          const firstDayWeek = new Date();
-          firstDayWeek.setDate(today.getDate() - today.getDay());
-          return itemDate >= firstDayWeek;
-        }
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
-        return true;
-      });
-    }
+  const mtdTotal = filteredData
+    .filter((item) => {
+      const date = new Date(item.tanggal);
+      return (
+        date.getMonth() === currentMonth &&
+        date.getFullYear() === currentYear
+      );
+    })
+    .reduce((sum, item) => sum + Number(item.output_kerja || 0), 0);
 
-    if (startDate && endDate) {
-      temp = temp.filter((item) => {
-        const itemDate = new Date(item.tanggal);
-        return (
-          itemDate >= new Date(startDate) &&
-          itemDate <= new Date(endDate)
-        );
-      });
-    }
+  const ytdTotal = filteredData
+    .filter((item) => {
+      const date = new Date(item.tanggal);
+      return date.getFullYear() === currentYear;
+    })
+    .reduce((sum, item) => sum + Number(item.output_kerja || 0), 0);
 
-    setFilteredData(temp);
+  // ==============================
+  // SUMMARY PER JENIS
+  // ==============================
+
+  const summaryByJenis = filteredData.reduce((acc, item) => {
+    const key = item.jenis_pekerjaan;
+    acc[key] = (acc[key] || 0) + Number(item.output_kerja || 0);
+    return acc;
+  }, {});
+
+  // ==============================
+  // SUMMARY PER FIELD
+  // ==============================
+
+  const summaryByField = filteredData.reduce((acc, item) => {
+    const key = item.field;
+    acc[key] = (acc[key] || 0) + Number(item.output_kerja || 0);
+    return acc;
+  }, {});
+
+  // ==============================
+  // EXPORT EXCEL
+  // ==============================
+
+  const handleExport = () => {
+    const ws = XLSX.utils.json_to_sheet(filteredData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Replanting Data");
+    XLSX.writeFile(wb, "replanting-data.xlsx");
   };
-
-  const totalMTD = filteredData
-    .filter((item) => new Date(item.tanggal) >= firstDayMonth)
-    .reduce((acc, curr) => acc + Number(curr.output_kerja), 0);
-
-  const totalYTD = filteredData
-    .filter((item) => new Date(item.tanggal) >= firstDayYear)
-    .reduce((acc, curr) => acc + Number(curr.output_kerja), 0);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
 
-  const handleDelete = async (id) => {
-    await supabase.from("replanting_records").delete().eq("id", id);
-    fetchData();
-  };
-
-  // ===== EXPORT FUNCTION =====
-  const handleExport = () => {
-    const exportData = filteredData.map((item) => ({
-      Tanggal: item.tanggal,
-      Jenis: item.jenis_pekerjaan,
-      Field: item.field,
-      Output: item.output_kerja,
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Monitoring");
-
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-
-    const file = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-
-    saveAs(file, "Monitoring_Replanting.xlsx");
-  };
-
   return (
-    <div className="p-8 text-white bg-black min-h-screen">
-
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Dashboard Monitoring Replanting</h1>
+    <div className="min-h-screen bg-black text-white p-8">
+      <div className="flex justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">
+            Dashboard Monitoring Replanting
+          </h1>
+          <p className="text-zinc-400">
+            {session?.user?.email}
+          </p>
+        </div>
         <div className="flex gap-3">
           <button
-            onClick={() => router.push("/input")}
-            className="bg-white text-black px-4 py-2 rounded"
-          >
-            + Input Data
-          </button>
-
-          <button
             onClick={handleExport}
-            className="bg-green-600 px-4 py-2 rounded"
+            className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700"
           >
             Export Excel
           </button>
-
           <button
             onClick={handleLogout}
-            className="border border-red-500 text-red-500 px-4 py-2 rounded"
+            className="border border-red-500 px-4 py-2 rounded-lg text-red-500 hover:bg-red-500 hover:text-white"
           >
             Logout
           </button>
@@ -160,100 +152,118 @@ export default function Dashboard() {
       </div>
 
       {/* FILTER */}
-      <div className="grid grid-cols-5 gap-4 mb-6">
-
+      <div className="flex flex-wrap gap-4 mb-6">
         <select
-          value={fieldFilter}
-          onChange={(e) => setFieldFilter(e.target.value)}
-          className="bg-zinc-800 p-2 rounded"
+          value={selectedField}
+          onChange={(e) => setSelectedField(e.target.value)}
+          className="bg-zinc-900 p-2 rounded"
         >
-          <option value="">Semua Field</option>
-          {[...new Set(data.map((d) => d.field))].map((f) => (
-            <option key={f}>{f}</option>
+          <option value="">All Field</option>
+          {[...new Set(data.map((d) => d.field))].map((field) => (
+            <option key={field} value={field}>
+              {field}
+            </option>
           ))}
         </select>
 
         <select
-          value={jenisFilter}
-          onChange={(e) => setJenisFilter(e.target.value)}
-          className="bg-zinc-800 p-2 rounded"
+          value={selectedJenis}
+          onChange={(e) => setSelectedJenis(e.target.value)}
+          className="bg-zinc-900 p-2 rounded"
         >
-          <option value="">Semua Jenis</option>
-          {[...new Set(data.map((d) => d.jenis_pekerjaan))].map((j) => (
-            <option key={j}>{j}</option>
+          <option value="">All Jenis</option>
+          {[...new Set(data.map((d) => d.jenis_pekerjaan))].map((jenis) => (
+            <option key={jenis} value={jenis}>
+              {jenis}
+            </option>
           ))}
-        </select>
-
-        <select
-          value={datePreset}
-          onChange={(e) => setDatePreset(e.target.value)}
-          className="bg-zinc-800 p-2 rounded"
-        >
-          <option value="all">Semua Tanggal</option>
-          <option value="today">Today</option>
-          <option value="week">Minggu Ini</option>
-          <option value="month">Bulan Ini</option>
-          <option value="year">Tahun Ini</option>
         </select>
 
         <input
           type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
-          className="bg-zinc-800 p-2 rounded"
+          className="bg-zinc-900 p-2 rounded"
         />
 
         <input
           type="date"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}
-          className="bg-zinc-800 p-2 rounded"
+          className="bg-zinc-900 p-2 rounded"
         />
       </div>
 
-      {/* SUMMARY */}
-      <div className="grid grid-cols-2 gap-6 mb-8">
-        <div className="bg-zinc-900 p-6 rounded">
-          <p className="text-zinc-400">MTD</p>
-          <h2 className="text-3xl font-bold">{totalMTD}</h2>
+      {/* KPI */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-zinc-900 p-6 rounded-xl">
+          <p className="text-sm text-zinc-400">MTD</p>
+          <h2 className="text-3xl font-bold">{mtdTotal}</h2>
         </div>
-        <div className="bg-zinc-900 p-6 rounded">
-          <p className="text-zinc-400">YTD</p>
-          <h2 className="text-3xl font-bold">{totalYTD}</h2>
+        <div className="bg-zinc-900 p-6 rounded-xl">
+          <p className="text-sm text-zinc-400">YTD</p>
+          <h2 className="text-3xl font-bold">{ytdTotal}</h2>
         </div>
       </div>
 
-      {/* TABLE */}
-      <table className="w-full border border-zinc-800">
-        <thead className="bg-zinc-900">
-          <tr>
-            <th className="p-3 text-left">Tanggal</th>
-            <th className="p-3 text-left">Jenis</th>
-            <th className="p-3 text-left">Field</th>
-            <th className="p-3 text-left">Output</th>
-            <th className="p-3 text-right">Aksi</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredData.map((item) => (
-            <tr key={item.id} className="border-t border-zinc-800">
-              <td className="p-3">{item.tanggal}</td>
-              <td className="p-3">{item.jenis_pekerjaan}</td>
-              <td className="p-3">{item.field}</td>
-              <td className="p-3">{item.output_kerja}</td>
-              <td className="p-3 text-right">
-                <button
-                  onClick={() => handleDelete(item.id)}
-                  className="text-red-400 hover:underline"
-                >
-                  Hapus
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* SUMMARY PER JENIS */}
+      <div className="bg-zinc-900 p-6 rounded-xl mb-6">
+        <h3 className="text-lg font-semibold mb-4">
+          📊 Output per Jenis
+        </h3>
+        {Object.entries(summaryByJenis).map(([jenis, total]) => (
+          <div
+            key={jenis}
+            className="flex justify-between border-b border-zinc-700 py-2"
+          >
+            <span>{jenis}</span>
+            <span>{total}</span>
+          </div>
+        ))}
+      </div>
 
+      {/* SUMMARY PER FIELD */}
+      <div className="bg-zinc-900 p-6 rounded-xl mb-6">
+        <h3 className="text-lg font-semibold mb-4">
+          🗺 Output per Field
+        </h3>
+        {Object.entries(summaryByField).map(([field, total]) => (
+          <div
+            key={field}
+            className="flex justify-between border-b border-zinc-700 py-2"
+          >
+            <span>{field}</span>
+            <span>{total}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* TABLE */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border border-zinc-800">
+          <thead className="bg-zinc-900">
+            <tr>
+              <th className="p-3 text-left">Tanggal</th>
+              <th className="p-3 text-left">Jenis</th>
+              <th className="p-3 text-left">Field</th>
+              <th className="p-3 text-left">Output</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map((item) => (
+              <tr
+                key={item.id}
+                className="border-t border-zinc-800"
+              >
+                <td className="p-3">{item.tanggal}</td>
+                <td className="p-3">{item.jenis_pekerjaan}</td>
+                <td className="p-3">{item.field}</td>
+                <td className="p-3">{item.output_kerja}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
