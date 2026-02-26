@@ -1,71 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "../../lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function Dashboard() {
   const router = useRouter();
-  const [session, setSession] = useState(null);
   const [data, setData] = useState([]);
-  // ==========================
-// HITUNG MTD & YTD
-// ==========================
+  const [session, setSession] = useState(null);
 
-const now = new Date();
-const currentMonth = now.getMonth();
-const currentYear = now.getFullYear();
-
-const mtd = data
-  ?.filter((item) => {
-    if (!item.tanggal) return false;
-
-    const d = new Date(item.tanggal);
-    return (
-      d.getMonth() === currentMonth &&
-      d.getFullYear() === currentYear
-    );
-  })
-  .reduce((sum, item) => {
-    return sum + Number(item.output_kerja || 0);
-  }, 0);
-
-const ytd = data
-  ?.filter((item) => {
-    if (!item.tanggal) return false;
-
-    const d = new Date(item.tanggal);
-    return d.getFullYear() === currentYear;
-  })
-  .reduce((sum, item) => {
-    return sum + Number(item.output_kerja || 0);
-  }, 0);
-  
-  const [role, setRole] = useState("");
+  const [selectedField, setSelectedField] = useState("all");
+  const [selectedJenis, setSelectedJenis] = useState("all");
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-
-      if (!sessionData.session) {
-        router.push("/login");
-      } else {
-        setSession(sessionData.session);
-        fetchData();
-      }
-    };
-
-    getSession();
+    checkSession();
   }, []);
 
+  const checkSession = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+
+    if (!sessionData.session) {
+      router.push("/login");
+    } else {
+      setSession(sessionData.session);
+      fetchData();
+    }
+  };
+
   const fetchData = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("replanting_records")
       .select("*")
       .order("tanggal", { ascending: false });
 
-    setData(data);
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setData(data || []);
   };
 
   const handleLogout = async () => {
@@ -76,22 +50,65 @@ const ytd = data
   const handleDelete = async (id) => {
     if (!confirm("Yakin ingin hapus data ini?")) return;
 
-    await supabase.from("monitoring").delete().eq("id", id);
+    await supabase.from("replanting_records").delete().eq("id", id);
     fetchData();
   };
 
-  const totalMTD = data.reduce((acc, item) => acc + item.output, 0);
-  const totalYTD = totalMTD;
+  // ===============================
+  // FILTER DATA
+  // ===============================
+  const filteredData = data.filter((item) => {
+    return (
+      (selectedField === "all" || item.field === selectedField) &&
+      (selectedJenis === "all" || item.jenis_pekerjaan === selectedJenis)
+    );
+  });
+
+  // ===============================
+  // HITUNG MTD & YTD (ANTI NaN)
+  // ===============================
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const mtd = filteredData.reduce((sum, item) => {
+    if (!item.tanggal) return sum;
+
+    const d = new Date(item.tanggal);
+
+    if (
+      d.getMonth() === currentMonth &&
+      d.getFullYear() === currentYear
+    ) {
+      return sum + Number(item.output_kerja || 0);
+    }
+
+    return sum;
+  }, 0);
+
+  const ytd = filteredData.reduce((sum, item) => {
+    if (!item.tanggal) return sum;
+
+    const d = new Date(item.tanggal);
+
+    if (d.getFullYear() === currentYear) {
+      return sum + Number(item.output_kerja || 0);
+    }
+
+    return sum;
+  }, 0);
 
   if (!session) return null;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white p-8">
-      
+
       {/* HEADER */}
       <div className="flex justify-between items-center mb-10">
         <div>
-          <h1 className="text-2xl font-semibold">Dashboard Monitoring</h1>
+          <h1 className="text-2xl font-semibold">
+            Dashboard Monitoring Replanting
+          </h1>
           <p className="text-zinc-400 text-sm">
             {session.user.email}
           </p>
@@ -106,12 +123,6 @@ const ytd = data
           </Link>
 
           <button
-            className="border border-zinc-700 px-4 py-2 rounded-lg text-sm hover:bg-zinc-800"
-          >
-            Export Excel
-          </button>
-
-          <button
             onClick={handleLogout}
             className="border border-red-600 text-red-500 px-4 py-2 rounded-lg text-sm hover:bg-red-600 hover:text-white"
           >
@@ -120,16 +131,45 @@ const ytd = data
         </div>
       </div>
 
-      {/* REKAP CARD */}
+      {/* FILTER */}
+      <div className="flex gap-4 mb-6">
+        <select
+          value={selectedField}
+          onChange={(e) => setSelectedField(e.target.value)}
+          className="bg-zinc-800 px-3 py-2 rounded"
+        >
+          <option value="all">Semua Field</option>
+          {[...new Set(data.map((d) => d.field))].map((f) => (
+            <option key={f} value={f}>
+              {f}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedJenis}
+          onChange={(e) => setSelectedJenis(e.target.value)}
+          className="bg-zinc-800 px-3 py-2 rounded"
+        >
+          <option value="all">Semua Jenis</option>
+          {[...new Set(data.map((d) => d.jenis_pekerjaan))].map((j) => (
+            <option key={j} value={j}>
+              {j}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* REKAP */}
       <div className="grid grid-cols-2 gap-6 mb-10">
         <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-800">
           <p className="text-zinc-400 text-sm">MTD</p>
-          <h2 className="text-2xl font-semibold mt-2">{totalMTD}</h2>
+          <h2 className="text-2xl font-semibold mt-2">{mtd}</h2>
         </div>
 
         <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-800">
           <p className="text-zinc-400 text-sm">YTD</p>
-          <h2 className="text-2xl font-semibold mt-2">{totalYTD}</h2>
+          <h2 className="text-2xl font-semibold mt-2">{ytd}</h2>
         </div>
       </div>
 
@@ -146,22 +186,16 @@ const ytd = data
             </tr>
           </thead>
           <tbody>
-            {data.map((item) => (
+            {filteredData.map((item) => (
               <tr
                 key={item.id}
                 className="border-t border-zinc-800 hover:bg-zinc-800/40"
               >
                 <td className="p-4">{item.tanggal}</td>
-                <td className="p-4">{item.jenis}</td>
+                <td className="p-4">{item.jenis_pekerjaan}</td>
                 <td className="p-4">{item.field}</td>
-                <td className="p-4">{item.output}</td>
-                <td className="p-4 text-right space-x-2">
-                  <Link
-                    href={`/edit/${item.id}`}
-                    className="text-blue-400 hover:underline"
-                  >
-                    Edit
-                  </Link>
+                <td className="p-4">{item.output_kerja}</td>
+                <td className="p-4 text-right">
                   <button
                     onClick={() => handleDelete(item.id)}
                     className="text-red-400 hover:underline"
