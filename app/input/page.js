@@ -1,151 +1,140 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { supabase } from "../../lib/supabase"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-export default function InputPage() {
+export default function InputMonitoring() {
+  const router = useRouter();
 
-  const router = useRouter()
-  const [user, setUser] = useState(null)
+  const [tanggal, setTanggal] = useState("");
+  const [jenis, setJenis] = useState("");
+  const [field, setField] = useState("");
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const [tanggal, setTanggal] = useState("")
-  const [jenis, setJenis] = useState("")
-  const [field, setField] = useState("")
-  const [output, setOutput] = useState("")
-  const [file, setFile] = useState(null)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-  const jenisPekerjaan = [
-    "Felling","Chipping","Debolling","CECT",
-    "Field Drain","Main Drain 1","Main Drain 2","Main Drain 3",
-    "Cambering","Leveling","Parit Tengah",
-    "Terrace","Lubang Tanam","Tanam Kelapa Sawit"
-  ]
+    const { error } = await supabase.from("replanting_records").insert([
+      {
+        tanggal,
+        jenis_pekerjaan: jenis,
+        field,
+        output_kerja: Number(output),
+      },
+    ]);
 
-  const fields = [
-    "F007","G006","H003","H004","H005","I005","J004"
-  ]
-
-  useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getUser()
-      if (!data.user) {
-        router.push("/login")
-      } else {
-        setUser(data.user)
-      }
-    }
-    checkUser()
-  }, [])
-
-  const handleSubmit = async () => {
-
-    if (!tanggal || !jenis || !field || !output) {
-      alert("Semua field wajib diisi")
-      return
-    }
-
-    let fotoUrl = null
-
-    if (file) {
-      const fileName = `${Date.now()}-${file.name}`
-
-      const { data, error } = await supabase.storage
-        .from("replanting-photos")
-        .upload(fileName, file)
-
-      if (!error) {
-        fotoUrl = data.path
-      }
-    }
-
-    const { error } = await supabase
-      .from("replanting_records")
-      .insert([
-        {
-          tanggal,
-          jenis_pekerjaan: jenis,
-          field,
-          output_kerja: output,
-          foto_url: fotoUrl,
-          created_by: user.id
-        }
-      ])
+    setLoading(false);
 
     if (error) {
-      alert("Gagal simpan: " + error.message)
+      alert("Gagal menyimpan data");
+      console.error(error);
     } else {
-
-      // 🔥 KIRIM TELEGRAM
-      const message = `
-📢 MONITORING REPLANTING
-
-Tanggal: ${tanggal}
-Field: ${field}
-Pekerjaan: ${jenis}
-Output: ${output}
-`
-
-      await fetch("https://api.telegram.org/bot8643296694:AAGqMUW0OFx9Dmu8wb-CJBkyaGAQfpYhsRo/sendMessage", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: -5275404504,
-          text: message
-        })
-      })
-
-      alert("Data berhasil disimpan & Telegram terkirim")
-      router.push("/dashboard")
+      alert("Data berhasil disimpan");
+      router.push("/dashboard");
     }
-  }
+  };
 
   return (
-    <div style={{ padding: 40 }}>
-      <h2>Input Monitoring Replanting</h2>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+      <div className="w-full max-w-2xl bg-zinc-900 rounded-2xl p-8 shadow-xl border border-zinc-800">
 
-      <br />
+        {/* HEADER */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Input Monitoring Replanting</h1>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="text-sm text-zinc-400 hover:text-white"
+          >
+            ← Kembali
+          </button>
+        </div>
 
-      <input type="date" onChange={(e)=>setTanggal(e.target.value)} />
-      <br /><br />
+        <form onSubmit={handleSubmit} className="space-y-6">
 
-      <select onChange={(e)=>setJenis(e.target.value)}>
-        <option value="">Pilih Jenis Pekerjaan</option>
-        {jenisPekerjaan.map((j,i)=>(
-          <option key={i}>{j}</option>
-        ))}
-      </select>
+          {/* TANGGAL */}
+          <div>
+            <label className="block text-sm mb-2 text-zinc-400">Tanggal</label>
+            <input
+              type="date"
+              value={tanggal}
+              onChange={(e) => setTanggal(e.target.value)}
+              required
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
+            />
+          </div>
 
-      <br /><br />
+          {/* GRID 2 KOLOM */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-      <select onChange={(e)=>setField(e.target.value)}>
-        <option value="">Pilih Field</option>
-        {fields.map((f,i)=>(
-          <option key={i}>{f}</option>
-        ))}
-      </select>
+            <div>
+              <label className="block text-sm mb-2 text-zinc-400">
+                Jenis Pekerjaan
+              </label>
+              <input
+                type="text"
+                value={jenis}
+                onChange={(e) => setJenis(e.target.value)}
+                required
+                placeholder="Contoh: Cambering"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
+              />
+            </div>
 
-      <br /><br />
+            <div>
+              <label className="block text-sm mb-2 text-zinc-400">
+                Field
+              </label>
+              <input
+                type="text"
+                value={field}
+                onChange={(e) => setField(e.target.value)}
+                required
+                placeholder="Contoh: H004"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
+              />
+            </div>
 
-      <input
-        type="number"
-        placeholder="Output Kerja"
-        onChange={(e)=>setOutput(e.target.value)}
-      />
+          </div>
 
-      <br /><br />
+          {/* OUTPUT */}
+          <div>
+            <label className="block text-sm mb-2 text-zinc-400">
+              Output Kerja
+            </label>
+            <input
+              type="number"
+              value={output}
+              onChange={(e) => setOutput(e.target.value)}
+              required
+              placeholder="Masukkan jumlah output"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
+            />
+          </div>
 
-      <input
-        type="file"
-        onChange={(e)=>setFile(e.target.files[0])}
-      />
+          {/* BUTTON */}
+          <div className="flex justify-end gap-4 pt-4">
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="px-4 py-2 border border-zinc-600 rounded-lg hover:bg-zinc-800"
+            >
+              Batal
+            </button>
 
-      <br /><br />
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              {loading ? "Menyimpan..." : "Simpan Data"}
+            </button>
+          </div>
 
-      <button onClick={handleSubmit}>
-        Simpan
-      </button>
-
+        </form>
+      </div>
     </div>
-  )
+  );
 }
