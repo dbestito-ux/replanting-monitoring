@@ -119,7 +119,6 @@ export default function Dashboard() {
     <div className="min-h-screen bg-black text-white p-4 sm:p-8">
 
       {/* MOBILE HEADER */}
-  
 <div className="sm:hidden mb-4 flex gap-2">
 
   <button
