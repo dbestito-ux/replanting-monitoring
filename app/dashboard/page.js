@@ -1,46 +1,99 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 export default function Dashboard() {
   const router = useRouter();
-  const [data, setData] = useState([]);
-  const [session, setSession] = useState(null);
 
-  const [selectedField, setSelectedField] = useState("all");
-  const [selectedJenis, setSelectedJenis] = useState("all");
+  const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
+
+  const [fieldFilter, setFieldFilter] = useState("");
+  const [jenisFilter, setJenisFilter] = useState("");
+  const [datePreset, setDatePreset] = useState("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const today = new Date();
+  const firstDayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const firstDayYear = new Date(today.getFullYear(), 0, 1);
 
   useEffect(() => {
-    checkSession();
+    fetchData();
   }, []);
 
-  const checkSession = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-
-    if (!sessionData.session) {
-      router.push("/login");
-    } else {
-      setSession(sessionData.session);
-      fetchData();
-    }
-  };
+  useEffect(() => {
+    applyFilter();
+  }, [data, fieldFilter, jenisFilter, datePreset, startDate, endDate]);
 
   const fetchData = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("replanting_records")
       .select("*")
       .order("tanggal", { ascending: false });
 
-    if (error) {
-      console.error(error);
-      return;
-    }
-
     setData(data || []);
   };
+
+  const applyFilter = () => {
+    let temp = [...data];
+
+    if (fieldFilter) {
+      temp = temp.filter((item) => item.field === fieldFilter);
+    }
+
+    if (jenisFilter) {
+      temp = temp.filter((item) => item.jenis_pekerjaan === jenisFilter);
+    }
+
+    if (datePreset !== "all") {
+      temp = temp.filter((item) => {
+        const itemDate = new Date(item.tanggal);
+
+        if (datePreset === "today") {
+          return itemDate.toDateString() === today.toDateString();
+        }
+
+        if (datePreset === "month") {
+          return itemDate >= firstDayMonth;
+        }
+
+        if (datePreset === "year") {
+          return itemDate >= firstDayYear;
+        }
+
+        if (datePreset === "week") {
+          const firstDayWeek = new Date();
+          firstDayWeek.setDate(today.getDate() - today.getDay());
+          return itemDate >= firstDayWeek;
+        }
+
+        return true;
+      });
+    }
+
+    if (startDate && endDate) {
+      temp = temp.filter((item) => {
+        const itemDate = new Date(item.tanggal);
+        return (
+          itemDate >= new Date(startDate) &&
+          itemDate <= new Date(endDate)
+        );
+      });
+    }
+
+    setFilteredData(temp);
+  };
+
+  const totalMTD = filteredData
+    .filter((item) => new Date(item.tanggal) >= firstDayMonth)
+    .reduce((acc, curr) => acc + Number(curr.output_kerja), 0);
+
+  const totalYTD = filteredData
+    .filter((item) => new Date(item.tanggal) >= firstDayYear)
+    .reduce((acc, curr) => acc + Number(curr.output_kerja), 0);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -48,166 +101,124 @@ export default function Dashboard() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Yakin ingin hapus data ini?")) return;
-
     await supabase.from("replanting_records").delete().eq("id", id);
     fetchData();
   };
 
-  // ===============================
-  // FILTER DATA
-  // ===============================
-  const filteredData = data.filter((item) => {
-    return (
-      (selectedField === "all" || item.field === selectedField) &&
-      (selectedJenis === "all" || item.jenis_pekerjaan === selectedJenis)
-    );
-  });
-
-  // ===============================
-  // HITUNG MTD & YTD (ANTI NaN)
-  // ===============================
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
-  const mtd = filteredData.reduce((sum, item) => {
-    if (!item.tanggal) return sum;
-
-    const d = new Date(item.tanggal);
-
-    if (
-      d.getMonth() === currentMonth &&
-      d.getFullYear() === currentYear
-    ) {
-      return sum + Number(item.output_kerja || 0);
-    }
-
-    return sum;
-  }, 0);
-
-  const ytd = filteredData.reduce((sum, item) => {
-    if (!item.tanggal) return sum;
-
-    const d = new Date(item.tanggal);
-
-    if (d.getFullYear() === currentYear) {
-      return sum + Number(item.output_kerja || 0);
-    }
-
-    return sum;
-  }, 0);
-
-  if (!session) return null;
-
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-8">
-
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-10">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            Dashboard Monitoring Replanting
-          </h1>
-          <p className="text-zinc-400 text-sm">
-            {session.user.email}
-          </p>
-        </div>
-
+    <div className="p-8 text-white bg-black min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Dashboard Monitoring Replanting</h1>
         <div className="flex gap-3">
-          <Link
-            href="/input"
-            className="bg-white text-black px-4 py-2 rounded-lg text-sm hover:bg-zinc-200"
+          <button
+            onClick={() => router.push("/input")}
+            className="bg-white text-black px-4 py-2 rounded"
           >
             + Input Data
-          </Link>
-
+          </button>
           <button
             onClick={handleLogout}
-            className="border border-red-600 text-red-500 px-4 py-2 rounded-lg text-sm hover:bg-red-600 hover:text-white"
+            className="border border-red-500 text-red-500 px-4 py-2 rounded"
           >
             Logout
           </button>
         </div>
       </div>
 
-      {/* FILTER */}
-      <div className="flex gap-4 mb-6">
+      {/* FILTER SECTION */}
+      <div className="grid grid-cols-5 gap-4 mb-6">
+
         <select
-          value={selectedField}
-          onChange={(e) => setSelectedField(e.target.value)}
-          className="bg-zinc-800 px-3 py-2 rounded"
+          value={fieldFilter}
+          onChange={(e) => setFieldFilter(e.target.value)}
+          className="bg-zinc-800 p-2 rounded"
         >
-          <option value="all">Semua Field</option>
+          <option value="">Semua Field</option>
           {[...new Set(data.map((d) => d.field))].map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
+            <option key={f}>{f}</option>
           ))}
         </select>
 
         <select
-          value={selectedJenis}
-          onChange={(e) => setSelectedJenis(e.target.value)}
-          className="bg-zinc-800 px-3 py-2 rounded"
+          value={jenisFilter}
+          onChange={(e) => setJenisFilter(e.target.value)}
+          className="bg-zinc-800 p-2 rounded"
         >
-          <option value="all">Semua Jenis</option>
+          <option value="">Semua Jenis</option>
           {[...new Set(data.map((d) => d.jenis_pekerjaan))].map((j) => (
-            <option key={j} value={j}>
-              {j}
-            </option>
+            <option key={j}>{j}</option>
           ))}
         </select>
+
+        <select
+          value={datePreset}
+          onChange={(e) => setDatePreset(e.target.value)}
+          className="bg-zinc-800 p-2 rounded"
+        >
+          <option value="all">Semua Tanggal</option>
+          <option value="today">Today</option>
+          <option value="week">Minggu Ini</option>
+          <option value="month">Bulan Ini (MTD)</option>
+          <option value="year">Tahun Ini (YTD)</option>
+        </select>
+
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          className="bg-zinc-800 p-2 rounded"
+        />
+
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          className="bg-zinc-800 p-2 rounded"
+        />
       </div>
 
-      {/* REKAP */}
-      <div className="grid grid-cols-2 gap-6 mb-10">
-        <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-800">
-          <p className="text-zinc-400 text-sm">MTD</p>
-          <h2 className="text-2xl font-semibold mt-2">{mtd}</h2>
+      {/* SUMMARY */}
+      <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="bg-zinc-900 p-6 rounded">
+          <p className="text-zinc-400">MTD</p>
+          <h2 className="text-3xl font-bold">{totalMTD}</h2>
         </div>
-
-        <div className="bg-zinc-900 p-6 rounded-xl border border-zinc-800">
-          <p className="text-zinc-400 text-sm">YTD</p>
-          <h2 className="text-2xl font-semibold mt-2">{ytd}</h2>
+        <div className="bg-zinc-900 p-6 rounded">
+          <p className="text-zinc-400">YTD</p>
+          <h2 className="text-3xl font-bold">{totalYTD}</h2>
         </div>
       </div>
 
       {/* TABLE */}
-      <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-zinc-800 text-zinc-400">
-            <tr>
-              <th className="text-left p-4">Tanggal</th>
-              <th className="text-left p-4">Jenis</th>
-              <th className="text-left p-4">Field</th>
-              <th className="text-left p-4">Output</th>
-              <th className="text-right p-4">Aksi</th>
+      <table className="w-full border border-zinc-800">
+        <thead className="bg-zinc-900">
+          <tr>
+            <th className="p-3 text-left">Tanggal</th>
+            <th className="p-3 text-left">Jenis</th>
+            <th className="p-3 text-left">Field</th>
+            <th className="p-3 text-left">Output</th>
+            <th className="p-3 text-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredData.map((item) => (
+            <tr key={item.id} className="border-t border-zinc-800">
+              <td className="p-3">{item.tanggal}</td>
+              <td className="p-3">{item.jenis_pekerjaan}</td>
+              <td className="p-3">{item.field}</td>
+              <td className="p-3">{item.output_kerja}</td>
+              <td className="p-3 text-right">
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="text-red-400 hover:underline"
+                >
+                  Hapus
+                </button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {filteredData.map((item) => (
-              <tr
-                key={item.id}
-                className="border-t border-zinc-800 hover:bg-zinc-800/40"
-              >
-                <td className="p-4">{item.tanggal}</td>
-                <td className="p-4">{item.jenis_pekerjaan}</td>
-                <td className="p-4">{item.field}</td>
-                <td className="p-4">{item.output_kerja}</td>
-                <td className="p-4 text-right">
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-red-400 hover:underline"
-                  >
-                    Hapus
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
