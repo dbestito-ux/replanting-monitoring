@@ -27,15 +27,11 @@ const [fieldSummary,setFieldSummary] = useState({})
 const [jenisSummary,setJenisSummary] = useState({})
 
 useEffect(()=>{
-checkUser()
+init()
 subscribeRealtime()
 },[])
 
-useEffect(()=>{
-applyFilters()
-},[records,selectedField,selectedJenis,startDate,endDate])
-
-async function checkUser(){
+async function init(){
 
 const {data:{user}} = await supabase.auth.getUser()
 
@@ -66,7 +62,10 @@ const {data,error} = await supabase
 .select("*")
 .order("tanggal",{ascending:false})
 
-if(error) return
+if(error){
+console.log(error)
+return
+}
 
 setRecords(data)
 
@@ -76,11 +75,13 @@ const jenisSet = [...new Set(data.map(d=>d.jenis_pekerjaan))]
 setFields(fieldSet)
 setJenisList(jenisSet)
 
+applyFilters(data)
+
 }
 
-function applyFilters(){
+function applyFilters(sourceData){
 
-let data = [...records]
+let data = sourceData ? [...sourceData] : [...records]
 
 if(selectedField){
 data = data.filter(d=>d.field === selectedField)
@@ -104,6 +105,10 @@ calculateSummary(data)
 calculateAnalytics(data)
 
 }
+
+useEffect(()=>{
+applyFilters()
+},[selectedField,selectedJenis,startDate,endDate])
 
 function calculateSummary(data){
 
@@ -174,17 +179,40 @@ loadData()
 
 }
 
+async function handleLogout(){
+
+await supabase.auth.signOut()
+
+router.push("/login")
+
+}
+
 return(
 
 <div className="min-h-screen bg-black text-white p-8">
 
-<h1 className="text-2xl font-bold mb-2">
+{/* HEADER */}
+
+<div className="flex justify-between items-center mb-6">
+
+<div>
+<h1 className="text-2xl font-bold">
 Supervisor Monitoring Dashboard
 </h1>
 
-<p className="text-zinc-400 mb-6">
+<p className="text-zinc-400">
 Mode: Read Only
 </p>
+</div>
+
+<button
+onClick={handleLogout}
+className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg"
+>
+Logout
+</button>
+
+</div>
 
 {/* FILTER */}
 
