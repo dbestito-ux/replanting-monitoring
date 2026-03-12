@@ -200,7 +200,6 @@ loadData()
 async function handleLogout(){
 
 await supabase.auth.signOut()
-
 router.push("/login")
 
 }
@@ -208,8 +207,6 @@ router.push("/login")
 return(
 
 <div className="min-h-screen bg-black text-white p-8">
-
-{/* HEADER */}
 
 <div className="flex justify-between items-center mb-6">
 
@@ -239,7 +236,7 @@ Logout
 <select
 value={selectedField}
 onChange={(e)=>setSelectedField(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded"
+className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
 >
 <option value="">All Field</option>
 {fields.map(f=>(
@@ -250,7 +247,7 @@ className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 <select
 value={selectedJenis}
 onChange={(e)=>setSelectedJenis(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded"
+className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
 >
 <option value="">All Jenis</option>
 {jenisList.map(j=>(
@@ -262,14 +259,14 @@ className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 type="date"
 value={startDate}
 onChange={(e)=>setStartDate(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded"
+className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
 />
 
 <input
 type="date"
 value={endDate}
 onChange={(e)=>setEndDate(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded"
+className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
 />
 
 </div>
@@ -278,24 +275,24 @@ className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 
 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
 <p className="text-zinc-400 text-sm">MTD Output</p>
 <p className="text-2xl font-bold mt-2">{mtd}</p>
 </div>
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
 <p className="text-zinc-400 text-sm">YTD Output</p>
 <p className="text-2xl font-bold mt-2">{ytd}</p>
 </div>
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
 <p className="text-zinc-400 text-sm">Total Records</p>
 <p className="text-2xl font-bold mt-2">{totalRecords}</p>
 </div>
 
 </div>
 
-{/* OUTPUT PER FIELD + JENIS */}
+{/* OUTPUT */}
 
 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
 
@@ -356,24 +353,26 @@ YTD : {data.ytd}
 
 </div>
 
-{/* TABLE */}
+{/* MONITORING TABLE */}
 
 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
 
-<h2 className="font-semibold mb-4">
+<h2 className="font-semibold mb-4 text-center">
 Monitoring Data
 </h2>
 
-<table className="w-full text-sm">
+<table className="w-full text-sm text-center">
 
 <thead className="border-b border-zinc-800 text-zinc-400">
 
 <tr>
-<th className="text-left py-3">Tanggal</th>
-<th>Jenis</th>
-<th>Field</th>
-<th>Output</th>
-<th>Satuan</th>
+
+<th className="py-3">Tanggal</th>
+<th className="py-3">Jenis</th>
+<th className="py-3">Field</th>
+<th className="py-3">Output</th>
+<th className="py-3">Satuan</th>
+
 </tr>
 
 </thead>
@@ -383,14 +382,14 @@ Monitoring Data
 {filteredData.map(item=>(
 <tr
 key={item.id}
-className="border-b border-zinc-800 hover:bg-zinc-800/40"
+className="border-b border-zinc-800 hover:bg-zinc-800/40 transition"
 >
 
 <td className="py-3">{item.tanggal}</td>
 <td>{item.jenis_pekerjaan}</td>
-<td>{item.field}</td>
-<td>{item.output_kerja}</td>
-<td>{item.satuan_output}</td>
+<td className="font-medium">{item.field}</td>
+<td className="font-semibold">{item.output_kerja}</td>
+<td className="text-zinc-400">{item.satuan_output}</td>
 
 </tr>
 ))}
