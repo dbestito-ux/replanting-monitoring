@@ -9,9 +9,20 @@ export default function SupervisorDashboard(){
 const router = useRouter()
 
 const [records,setRecords] = useState([])
+const [filteredData,setFilteredData] = useState([])
+
+const [fields,setFields] = useState([])
+const [jenisList,setJenisList] = useState([])
+
+const [selectedField,setSelectedField] = useState("")
+const [selectedJenis,setSelectedJenis] = useState("")
+const [startDate,setStartDate] = useState("")
+const [endDate,setEndDate] = useState("")
+
 const [mtd,setMTD] = useState(0)
 const [ytd,setYTD] = useState(0)
 const [totalRecords,setTotalRecords] = useState(0)
+
 const [fieldSummary,setFieldSummary] = useState({})
 const [jenisSummary,setJenisSummary] = useState({})
 
@@ -19,6 +30,10 @@ useEffect(()=>{
 checkUser()
 subscribeRealtime()
 },[])
+
+useEffect(()=>{
+applyFilters()
+},[records,selectedField,selectedJenis,startDate,endDate])
 
 async function checkUser(){
 
@@ -54,7 +69,36 @@ const {data,error} = await supabase
 if(error) return
 
 setRecords(data)
-setTotalRecords(data.length)
+
+const fieldSet = [...new Set(data.map(d=>d.field))]
+const jenisSet = [...new Set(data.map(d=>d.jenis_pekerjaan))]
+
+setFields(fieldSet)
+setJenisList(jenisSet)
+
+}
+
+function applyFilters(){
+
+let data = [...records]
+
+if(selectedField){
+data = data.filter(d=>d.field === selectedField)
+}
+
+if(selectedJenis){
+data = data.filter(d=>d.jenis_pekerjaan === selectedJenis)
+}
+
+if(startDate){
+data = data.filter(d=>d.tanggal >= startDate)
+}
+
+if(endDate){
+data = data.filter(d=>d.tanggal <= endDate)
+}
+
+setFilteredData(data)
 
 calculateSummary(data)
 calculateAnalytics(data)
@@ -87,6 +131,7 @@ ytdTotal += Number(r.output_kerja)
 
 setMTD(mtdTotal)
 setYTD(ytdTotal)
+setTotalRecords(data.length)
 
 }
 
@@ -121,7 +166,7 @@ event:"*",
 schema:"public",
 table:"replanting_records"
 },
-(payload)=>{
+()=>{
 loadData()
 }
 )
@@ -137,13 +182,55 @@ return(
 Supervisor Monitoring Dashboard
 </h1>
 
-<p className="text-zinc-400 mb-8">
+<p className="text-zinc-400 mb-6">
 Mode: Read Only
 </p>
 
-{/* KPI CARDS */}
+{/* FILTER */}
 
-<div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+
+<select
+value={selectedField}
+onChange={(e)=>setSelectedField(e.target.value)}
+className="bg-zinc-900 border border-zinc-700 p-2 rounded"
+>
+<option value="">All Field</option>
+{fields.map(f=>(
+<option key={f}>{f}</option>
+))}
+</select>
+
+<select
+value={selectedJenis}
+onChange={(e)=>setSelectedJenis(e.target.value)}
+className="bg-zinc-900 border border-zinc-700 p-2 rounded"
+>
+<option value="">All Jenis</option>
+{jenisList.map(j=>(
+<option key={j}>{j}</option>
+))}
+</select>
+
+<input
+type="date"
+value={startDate}
+onChange={(e)=>setStartDate(e.target.value)}
+className="bg-zinc-900 border border-zinc-700 p-2 rounded"
+/>
+
+<input
+type="date"
+value={endDate}
+onChange={(e)=>setEndDate(e.target.value)}
+className="bg-zinc-900 border border-zinc-700 p-2 rounded"
+/>
+
+</div>
+
+{/* KPI */}
+
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
 
 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
 <p className="text-zinc-400 text-sm">MTD Output</p>
@@ -160,30 +247,20 @@ Mode: Read Only
 <p className="text-2xl font-bold mt-2">{totalRecords}</p>
 </div>
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-<p className="text-zinc-400 text-sm">Total Field</p>
-<p className="text-2xl font-bold mt-2">
-{Object.keys(fieldSummary).length}
-</p>
-</div>
-
 </div>
 
 {/* OUTPUT PER JENIS */}
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-10">
+<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
 
 <h2 className="font-semibold mb-4">
 📊 Output per Jenis
 </h2>
 
-{Object.keys(jenisSummary).map((key)=>(
-<div
-key={key}
-className="flex justify-between border-b border-zinc-800 py-2"
->
-<span>{key}</span>
-<span>{jenisSummary[key]}</span>
+{Object.keys(jenisSummary).map(k=>(
+<div key={k} className="flex justify-between border-b border-zinc-800 py-2">
+<span>{k}</span>
+<span>{jenisSummary[k]}</span>
 </div>
 ))}
 
@@ -191,19 +268,16 @@ className="flex justify-between border-b border-zinc-800 py-2"
 
 {/* OUTPUT PER FIELD */}
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-10">
+<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
 
 <h2 className="font-semibold mb-4">
 🗺 Output per Field
 </h2>
 
-{Object.keys(fieldSummary).map((key)=>(
-<div
-key={key}
-className="flex justify-between border-b border-zinc-800 py-2"
->
-<span>{key}</span>
-<span>{fieldSummary[key]}</span>
+{Object.keys(fieldSummary).map(k=>(
+<div key={k} className="flex justify-between border-b border-zinc-800 py-2">
+<span>{k}</span>
+<span>{fieldSummary[k]}</span>
 </div>
 ))}
 
@@ -217,51 +291,33 @@ className="flex justify-between border-b border-zinc-800 py-2"
 Monitoring Data
 </h2>
 
-<div className="overflow-x-auto">
-
 <table className="w-full text-sm">
 
-<thead className="text-zinc-400 border-b border-zinc-800">
+<thead className="border-b border-zinc-800 text-zinc-400">
 
 <tr>
-
 <th className="text-left py-3">Tanggal</th>
-<th className="text-left py-3">Jenis</th>
-<th className="text-left py-3">Field</th>
-<th className="text-left py-3">Output</th>
-<th className="text-left py-3">Satuan</th>
-
+<th>Jenis</th>
+<th>Field</th>
+<th>Output</th>
+<th>Satuan</th>
 </tr>
 
 </thead>
 
 <tbody>
 
-{records.map((item)=>(
+{filteredData.map(item=>(
 <tr
 key={item.id}
 className="border-b border-zinc-800 hover:bg-zinc-800/40"
 >
 
-<td className="py-3">
-{item.tanggal}
-</td>
-
-<td>
-{item.jenis_pekerjaan}
-</td>
-
-<td>
-{item.field}
-</td>
-
-<td>
-{item.output_kerja}
-</td>
-
-<td>
-{item.satuan_output}
-</td>
+<td className="py-3">{item.tanggal}</td>
+<td>{item.jenis_pekerjaan}</td>
+<td>{item.field}</td>
+<td>{item.output_kerja}</td>
+<td>{item.satuan_output}</td>
 
 </tr>
 ))}
@@ -269,8 +325,6 @@ className="border-b border-zinc-800 hover:bg-zinc-800/40"
 </tbody>
 
 </table>
-
-</div>
 
 </div>
 
