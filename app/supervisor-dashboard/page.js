@@ -206,23 +206,25 @@ router.push("/login")
 
 return(
 
-<div className="min-h-screen bg-black text-white p-8">
+<div className="min-h-screen bg-black text-white p-4 md:p-8">
+
+{/* HEADER */}
 
 <div className="flex justify-between items-center mb-6">
 
 <div>
-<h1 className="text-2xl font-bold">
+<h1 className="text-xl md:text-2xl font-bold">
 Supervisor Monitoring Dashboard
 </h1>
 
-<p className="text-zinc-400">
+<p className="text-zinc-400 text-sm">
 Mode: Read Only
 </p>
 </div>
 
 <button
 onClick={handleLogout}
-className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg"
+className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
 >
 Logout
 </button>
@@ -231,12 +233,12 @@ Logout
 
 {/* FILTER */}
 
-<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+<div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
 
 <select
 value={selectedField}
 onChange={(e)=>setSelectedField(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
+className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 >
 <option value="">All Field</option>
 {fields.map(f=>(
@@ -247,7 +249,7 @@ className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
 <select
 value={selectedJenis}
 onChange={(e)=>setSelectedJenis(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
+className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 >
 <option value="">All Jenis</option>
 {jenisList.map(j=>(
@@ -259,55 +261,53 @@ className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
 type="date"
 value={startDate}
 onChange={(e)=>setStartDate(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
+className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 />
 
 <input
 type="date"
 value={endDate}
 onChange={(e)=>setEndDate(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded text-center"
+className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 />
 
 </div>
 
 {/* KPI */}
 
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+<div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
-<p className="text-zinc-400 text-sm">MTD Output</p>
-<p className="text-2xl font-bold mt-2">{mtd}</p>
+<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
+<p className="text-xs text-zinc-400">MTD Output</p>
+<p className="text-xl font-bold mt-1">{mtd}</p>
 </div>
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
-<p className="text-zinc-400 text-sm">YTD Output</p>
-<p className="text-2xl font-bold mt-2">{ytd}</p>
+<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
+<p className="text-xs text-zinc-400">YTD Output</p>
+<p className="text-xl font-bold mt-1">{ytd}</p>
 </div>
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-center">
-<p className="text-zinc-400 text-sm">Total Records</p>
-<p className="text-2xl font-bold mt-2">{totalRecords}</p>
+<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center col-span-2 md:col-span-1">
+<p className="text-xs text-zinc-400">Total Records</p>
+<p className="text-xl font-bold mt-1">{totalRecords}</p>
 </div>
 
 </div>
 
-{/* OUTPUT */}
+{/* OUTPUT ANALYTICS */}
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
+<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mb-6">
 
-<h2 className="font-semibold mb-6">
+<h2 className="font-semibold mb-4">
 Output Monitoring
 </h2>
 
 {Object.keys(analytics).map(field=>(
-<div key={field} className="mb-6">
+<div key={field} className="mb-5">
 
-<h3 className="font-bold text-lg mb-3">
+<h3 className="font-bold text-green-400 mb-2">
 {field}
 </h3>
-
-<div className="space-y-2">
 
 {Object.keys(analytics[field]).map(jenis=>{
 
@@ -317,24 +317,24 @@ return(
 
 <div
 key={jenis}
-className="flex justify-between items-center bg-zinc-800/40 p-3 rounded-lg"
+className="bg-zinc-800/40 rounded-lg p-3 mb-2"
 >
 
-<span className="font-medium">
+<div className="font-medium mb-2">
 {jenis}
-</span>
+</div>
 
-<div className="flex gap-4 text-sm">
+<div className="flex gap-2 text-xs">
 
-<span className="bg-zinc-700 px-3 py-1 rounded">
+<span className="bg-zinc-700 px-2 py-1 rounded">
 HI : {data.hi}
 </span>
 
-<span className="bg-zinc-700 px-3 py-1 rounded">
+<span className="bg-zinc-700 px-2 py-1 rounded">
 MTD : {data.mtd}
 </span>
 
-<span className="bg-zinc-700 px-3 py-1 rounded">
+<span className="bg-zinc-700 px-2 py-1 rounded">
 YTD : {data.ytd}
 </span>
 
@@ -347,15 +347,59 @@ YTD : {data.ytd}
 })}
 
 </div>
-
-</div>
 ))}
 
 </div>
 
-{/* MONITORING TABLE */}
+{/* MOBILE CARD LIST */}
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+<div className="block md:hidden">
+
+<h2 className="font-semibold mb-3">
+Monitoring Data
+</h2>
+
+{filteredData.map(item=>(
+
+<div
+key={item.id}
+className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-3"
+>
+
+<div className="flex justify-between text-sm mb-2">
+<span className="text-zinc-400">Tanggal</span>
+<span>{item.tanggal}</span>
+</div>
+
+<div className="flex justify-between text-sm mb-2">
+<span className="text-zinc-400">Jenis</span>
+<span>{item.jenis_pekerjaan}</span>
+</div>
+
+<div className="flex justify-between text-sm mb-2">
+<span className="text-zinc-400">Field</span>
+<span className="font-semibold">{item.field}</span>
+</div>
+
+<div className="flex justify-between text-sm mb-2">
+<span className="text-zinc-400">Output</span>
+<span className="font-bold">{item.output_kerja}</span>
+</div>
+
+<div className="flex justify-between text-sm">
+<span className="text-zinc-400">Satuan</span>
+<span>{item.satuan_output}</span>
+</div>
+
+</div>
+
+))}
+
+</div>
+
+{/* DESKTOP TABLE */}
+
+<div className="hidden md:block bg-zinc-900 border border-zinc-800 rounded-xl p-6">
 
 <h2 className="font-semibold mb-4 text-center">
 Monitoring Data
@@ -368,10 +412,10 @@ Monitoring Data
 <tr>
 
 <th className="py-3">Tanggal</th>
-<th className="py-3">Jenis</th>
-<th className="py-3">Field</th>
-<th className="py-3">Output</th>
-<th className="py-3">Satuan</th>
+<th>Jenis</th>
+<th>Field</th>
+<th>Output</th>
+<th>Satuan</th>
 
 </tr>
 
@@ -382,14 +426,14 @@ Monitoring Data
 {filteredData.map(item=>(
 <tr
 key={item.id}
-className="border-b border-zinc-800 hover:bg-zinc-800/40 transition"
+className="border-b border-zinc-800 hover:bg-zinc-800/40"
 >
 
 <td className="py-3">{item.tanggal}</td>
 <td>{item.jenis_pekerjaan}</td>
 <td className="font-medium">{item.field}</td>
 <td className="font-semibold">{item.output_kerja}</td>
-<td className="text-zinc-400">{item.satuan_output}</td>
+<td>{item.satuan_output}</td>
 
 </tr>
 ))}
