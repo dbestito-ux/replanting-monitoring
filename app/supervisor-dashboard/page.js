@@ -8,6 +8,8 @@ export default function SupervisorDashboard(){
 
 const router = useRouter()
 
+const [loading,setLoading] = useState(true)
+
 const [records,setRecords] = useState([])
 const [filteredData,setFilteredData] = useState([])
 
@@ -56,6 +58,8 @@ loadData()
 
 async function loadData(){
 
+setLoading(true)
+
 const {data,error} = await supabase
 .from("replanting_records")
 .select("*")
@@ -72,6 +76,10 @@ setFields(fieldSet)
 setJenisList(jenisSet)
 
 applyFilters(data)
+
+setTimeout(()=>{
+setLoading(false)
+},500)
 
 }
 
@@ -214,7 +222,7 @@ Replanting Monitoring
 
 <button
 onClick={handleLogout}
-className="text-red-400 text-sm"
+className="text-red-400 text-sm active:scale-95 transition"
 >
 Logout
 </button>
@@ -231,7 +239,6 @@ Logout
 <h1 className="text-2xl font-bold">
 Supervisor Monitoring Dashboard
 </h1>
-
 <p className="text-zinc-400">
 Mode: Read Only
 </p>
@@ -239,7 +246,7 @@ Mode: Read Only
 
 <button
 onClick={handleLogout}
-className="bg-red-600 px-4 py-2 rounded-lg"
+className="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-700 transition"
 >
 Logout
 </button>
@@ -250,110 +257,34 @@ Logout
 
 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 md:p-0">
 
-<div className="bg-zinc-900 rounded-xl p-4">
+{loading ? (
+
+<>
+<div className="h-20 bg-zinc-800 animate-pulse rounded-xl"></div>
+<div className="h-20 bg-zinc-800 animate-pulse rounded-xl"></div>
+<div className="h-20 bg-zinc-800 animate-pulse rounded-xl col-span-2 md:col-span-1"></div>
+</>
+
+) : (
+
+<>
+<div className="bg-zinc-900 rounded-xl p-4 transition hover:scale-[1.02]">
 <p className="text-xs text-zinc-400">MTD Output</p>
 <p className="text-xl font-bold">{mtd}</p>
 </div>
 
-<div className="bg-zinc-900 rounded-xl p-4">
+<div className="bg-zinc-900 rounded-xl p-4 transition hover:scale-[1.02]">
 <p className="text-xs text-zinc-400">YTD Output</p>
 <p className="text-xl font-bold">{ytd}</p>
 </div>
 
-<div className="bg-zinc-900 rounded-xl p-4 col-span-2 md:col-span-1">
+<div className="bg-zinc-900 rounded-xl p-4 col-span-2 md:col-span-1 transition hover:scale-[1.02]">
 <p className="text-xs text-zinc-400">Total Records</p>
 <p className="text-xl font-bold">{totalRecords}</p>
 </div>
+</>
 
-</div>
-
-{/* FILTER */}
-
-<div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 md:p-0">
-
-<select
-value={selectedField}
-onChange={(e)=>setSelectedField(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded"
->
-<option value="">All Field</option>
-{fields.map(f=>(<option key={f}>{f}</option>))}
-</select>
-
-<select
-value={selectedJenis}
-onChange={(e)=>setSelectedJenis(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded"
->
-<option value="">All Jenis</option>
-{jenisList.map(j=>(<option key={j}>{j}</option>))}
-</select>
-
-<input
-type="date"
-value={startDate}
-onChange={(e)=>setStartDate(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded"
-/>
-
-<input
-type="date"
-value={endDate}
-onChange={(e)=>setEndDate(e.target.value)}
-className="bg-zinc-900 border border-zinc-700 p-2 rounded"
-/>
-
-</div>
-
-{/* ANALYTICS */}
-
-<div className="p-4 md:p-0 mt-6">
-
-{Object.keys(analytics).map(field=>(
-
-<div key={field} className="bg-zinc-900 rounded-xl p-4 mb-4">
-
-<h3 className="font-bold text-green-400 mb-3">
-{field}
-</h3>
-
-{Object.keys(analytics[field]).map(jenis=>{
-
-const d=analytics[field][jenis]
-
-return(
-
-<div key={jenis} className="bg-zinc-800 rounded-lg p-3 mb-2">
-
-<div className="text-sm font-semibold mb-1">
-{jenis}
-</div>
-
-<div className="flex gap-2 text-xs">
-
-<span className="bg-zinc-700 px-2 py-1 rounded">
-HI : {d.hi}
-</span>
-
-<span className="bg-zinc-700 px-2 py-1 rounded">
-MTD : {d.mtd}
-</span>
-
-<span className="bg-zinc-700 px-2 py-1 rounded">
-YTD : {d.ytd}
-</span>
-
-</div>
-
-</div>
-
-)
-
-})}
-
-</div>
-
-))}
+)}
 
 </div>
 
@@ -361,11 +292,21 @@ YTD : {d.ytd}
 
 <div className="block md:hidden p-4">
 
-{filteredData.map(item=>(
+{loading ? (
+
+<>
+<div className="h-24 bg-zinc-800 animate-pulse rounded-xl mb-3"></div>
+<div className="h-24 bg-zinc-800 animate-pulse rounded-xl mb-3"></div>
+<div className="h-24 bg-zinc-800 animate-pulse rounded-xl"></div>
+</>
+
+) : (
+
+filteredData.map(item=>(
 
 <div
 key={item.id}
-className="bg-zinc-900 rounded-xl p-4 mb-3"
+className="bg-zinc-900 rounded-xl p-4 mb-3 transition active:scale-95"
 >
 
 <div className="flex justify-between text-xs text-zinc-400 mb-1">
@@ -393,7 +334,9 @@ className="bg-zinc-900 rounded-xl p-4 mb-3"
 
 </div>
 
-))}
+))
+
+)}
 
 </div>
 
@@ -425,7 +368,7 @@ Monitoring Data
 
 <tr
 key={item.id}
-className="border-b border-zinc-800 hover:bg-zinc-800/40"
+className="border-b border-zinc-800 hover:bg-zinc-800/40 transition"
 >
 
 <td className="py-3">{item.tanggal}</td>
