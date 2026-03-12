@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect,useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 
@@ -65,8 +65,8 @@ if(error) return
 
 setRecords(data)
 
-const fieldSet = [...new Set(data.map(d=>d.field))]
-const jenisSet = [...new Set(data.map(d=>d.jenis_pekerjaan))]
+const fieldSet=[...new Set(data.map(d=>d.field))]
+const jenisSet=[...new Set(data.map(d=>d.jenis_pekerjaan))]
 
 setFields(fieldSet)
 setJenisList(jenisSet)
@@ -75,24 +75,24 @@ applyFilters(data)
 
 }
 
-function applyFilters(sourceData){
+function applyFilters(source){
 
-let data = sourceData ? [...sourceData] : [...records]
+let data = source ? [...source] : [...records]
 
 if(selectedField){
-data = data.filter(d=>d.field === selectedField)
+data=data.filter(d=>d.field===selectedField)
 }
 
 if(selectedJenis){
-data = data.filter(d=>d.jenis_pekerjaan === selectedJenis)
+data=data.filter(d=>d.jenis_pekerjaan===selectedJenis)
 }
 
 if(startDate){
-data = data.filter(d=>d.tanggal >= startDate)
+data=data.filter(d=>d.tanggal>=startDate)
 }
 
 if(endDate){
-data = data.filter(d=>d.tanggal <= endDate)
+data=data.filter(d=>d.tanggal<=endDate)
 }
 
 setFilteredData(data)
@@ -108,68 +108,65 @@ applyFilters()
 
 function calculateSummary(data){
 
-const now = new Date()
+const now=new Date()
 
-const startMonth = new Date(now.getFullYear(),now.getMonth(),1)
-const startYear = new Date(now.getFullYear(),0,1)
+const startMonth=new Date(now.getFullYear(),now.getMonth(),1)
+const startYear=new Date(now.getFullYear(),0,1)
 
-let mtdTotal = 0
-let ytdTotal = 0
+let m=0
+let y=0
 
 data.forEach(r=>{
 
-const d = new Date(r.tanggal)
+const d=new Date(r.tanggal)
 
-if(d >= startMonth){
-mtdTotal += Number(r.output_kerja)
+if(d>=startMonth){
+m+=Number(r.output_kerja)
 }
 
-if(d >= startYear){
-ytdTotal += Number(r.output_kerja)
+if(d>=startYear){
+y+=Number(r.output_kerja)
 }
 
 })
 
-setMTD(mtdTotal)
-setYTD(ytdTotal)
+setMTD(m)
+setYTD(y)
 setTotalRecords(data.length)
 
 }
 
 function calculateAnalytics(data){
 
-const today = new Date().toISOString().split("T")[0]
-const now = new Date()
+const today=new Date().toISOString().split("T")[0]
 
-const startMonth = new Date(now.getFullYear(),now.getMonth(),1)
-const startYear = new Date(now.getFullYear(),0,1)
+const now=new Date()
 
-const result = {}
+const startMonth=new Date(now.getFullYear(),now.getMonth(),1)
+const startYear=new Date(now.getFullYear(),0,1)
+
+const result={}
 
 data.forEach(r=>{
 
-if(!result[r.field]) result[r.field] = {}
+if(!result[r.field]) result[r.field]={}
 
 if(!result[r.field][r.jenis_pekerjaan]){
-result[r.field][r.jenis_pekerjaan] = {
-hi:0,
-mtd:0,
-ytd:0
-}
+result[r.field][r.jenis_pekerjaan]={hi:0,mtd:0,ytd:0}
 }
 
-const date = new Date(r.tanggal)
+const d=new Date(r.tanggal)
 
-if(r.tanggal === today){
-result[r.field][r.jenis_pekerjaan].hi += Number(r.output_kerja)
+if(r.tanggal===today){
+result[r.field][r.jenis_pekerjaan].hi+=Number(r.output_kerja)
 }
 
-if(date >= startMonth){
-result[r.field][r.jenis_pekerjaan].mtd += Number(r.output_kerja)
+if(d>=startMonth){
+result[r.field][r.jenis_pekerjaan].mtd+=Number(r.output_kerja)
 }
 
-if(date >= startYear){
-result[r.field][r.jenis_pekerjaan].ytd += Number(r.output_kerja)
+if(d>=startYear){
+result[r.field][r.jenis_pekerjaan].ytd+=Number(r.output_kerja)
 }
 
 })
@@ -181,9 +178,8 @@ setAnalytics(result)
 function subscribeRealtime(){
 
 supabase
-.channel("replanting-live")
-.on(
-"postgres_changes",
+.channel("live-replanting")
+.on("postgres_changes",
 {
 event:"*",
 schema:"public",
@@ -206,34 +202,74 @@ router.push("/login")
 
 return(
 
-<div className="min-h-screen bg-black text-white p-4 md:p-8">
+<div className="min-h-screen bg-black text-white md:p-8 pb-24">
 
-{/* HEADER */}
+{/* MOBILE APP BAR */}
 
-<div className="flex justify-between items-center mb-6">
+<div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-zinc-950 border-b border-zinc-800 px-4 py-3 flex justify-between items-center">
 
-<div>
-<h1 className="text-xl md:text-2xl font-bold">
-Supervisor Monitoring Dashboard
+<h1 className="text-sm font-semibold">
+Replanting Monitoring
 </h1>
-
-<p className="text-zinc-400 text-sm">
-Mode: Read Only
-</p>
-</div>
 
 <button
 onClick={handleLogout}
-className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
+className="text-red-400 text-sm"
 >
 Logout
 </button>
 
 </div>
 
+<div className="h-14 md:hidden"></div>
+
+{/* DESKTOP HEADER */}
+
+<div className="hidden md:flex justify-between items-center mb-6">
+
+<div>
+<h1 className="text-2xl font-bold">
+Supervisor Monitoring Dashboard
+</h1>
+
+<p className="text-zinc-400">
+Mode: Read Only
+</p>
+</div>
+
+<button
+onClick={handleLogout}
+className="bg-red-600 px-4 py-2 rounded-lg"
+>
+Logout
+</button>
+
+</div>
+
+{/* KPI */}
+
+<div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 md:p-0">
+
+<div className="bg-zinc-900 rounded-xl p-4">
+<p className="text-xs text-zinc-400">MTD Output</p>
+<p className="text-xl font-bold">{mtd}</p>
+</div>
+
+<div className="bg-zinc-900 rounded-xl p-4">
+<p className="text-xs text-zinc-400">YTD Output</p>
+<p className="text-xl font-bold">{ytd}</p>
+</div>
+
+<div className="bg-zinc-900 rounded-xl p-4 col-span-2 md:col-span-1">
+<p className="text-xs text-zinc-400">Total Records</p>
+<p className="text-xl font-bold">{totalRecords}</p>
+</div>
+
+</div>
+
 {/* FILTER */}
 
-<div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+<div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 md:p-0">
 
 <select
 value={selectedField}
@@ -241,9 +277,7 @@ onChange={(e)=>setSelectedField(e.target.value)}
 className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 >
 <option value="">All Field</option>
-{fields.map(f=>(
-<option key={f}>{f}</option>
-))}
+{fields.map(f=>(<option key={f}>{f}</option>))}
 </select>
 
 <select
@@ -252,9 +286,7 @@ onChange={(e)=>setSelectedJenis(e.target.value)}
 className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 >
 <option value="">All Jenis</option>
-{jenisList.map(j=>(
-<option key={j}>{j}</option>
-))}
+{jenisList.map(j=>(<option key={j}>{j}</option>))}
 </select>
 
 <input
@@ -273,69 +305,42 @@ className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 
 </div>
 
-{/* KPI */}
+{/* ANALYTICS */}
 
-<div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
-<p className="text-xs text-zinc-400">MTD Output</p>
-<p className="text-xl font-bold mt-1">{mtd}</p>
-</div>
-
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
-<p className="text-xs text-zinc-400">YTD Output</p>
-<p className="text-xl font-bold mt-1">{ytd}</p>
-</div>
-
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center col-span-2 md:col-span-1">
-<p className="text-xs text-zinc-400">Total Records</p>
-<p className="text-xl font-bold mt-1">{totalRecords}</p>
-</div>
-
-</div>
-
-{/* OUTPUT ANALYTICS */}
-
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mb-6">
-
-<h2 className="font-semibold mb-4">
-Output Monitoring
-</h2>
+<div className="p-4 md:p-0 mt-6">
 
 {Object.keys(analytics).map(field=>(
-<div key={field} className="mb-5">
 
-<h3 className="font-bold text-green-400 mb-2">
+<div key={field} className="bg-zinc-900 rounded-xl p-4 mb-4">
+
+<h3 className="font-bold text-green-400 mb-3">
 {field}
 </h3>
 
 {Object.keys(analytics[field]).map(jenis=>{
 
-const data = analytics[field][jenis]
+const d=analytics[field][jenis]
 
 return(
 
-<div
-key={jenis}
-className="bg-zinc-800/40 rounded-lg p-3 mb-2"
->
+<div key={jenis} className="bg-zinc-800 rounded-lg p-3 mb-2">
 
-<div className="font-medium mb-2">
+<div className="text-sm font-semibold mb-1">
 {jenis}
 </div>
 
 <div className="flex gap-2 text-xs">
 
 <span className="bg-zinc-700 px-2 py-1 rounded">
-HI : {data.hi}
+HI : {d.hi}
 </span>
 
 <span className="bg-zinc-700 px-2 py-1 rounded">
-MTD : {data.mtd}
+MTD : {d.mtd}
 </span>
 
 <span className="bg-zinc-700 px-2 py-1 rounded">
-YTD : {data.ytd}
+YTD : {d.ytd}
 </span>
 
 </div>
@@ -347,48 +352,43 @@ YTD : {data.ytd}
 })}
 
 </div>
+
 ))}
 
 </div>
 
-{/* MOBILE CARD LIST */}
+{/* MOBILE MONITORING */}
 
-<div className="block md:hidden">
-
-<h2 className="font-semibold mb-3">
-Monitoring Data
-</h2>
+<div className="block md:hidden p-4">
 
 {filteredData.map(item=>(
 
 <div
 key={item.id}
-className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-3"
+className="bg-zinc-900 rounded-xl p-4 mb-3"
 >
 
-<div className="flex justify-between text-sm mb-2">
-<span className="text-zinc-400">Tanggal</span>
+<div className="flex justify-between text-xs text-zinc-400 mb-1">
 <span>{item.tanggal}</span>
+<span>{item.field}</span>
 </div>
 
-<div className="flex justify-between text-sm mb-2">
-<span className="text-zinc-400">Jenis</span>
-<span>{item.jenis_pekerjaan}</span>
-</div>
-
-<div className="flex justify-between text-sm mb-2">
-<span className="text-zinc-400">Field</span>
-<span className="font-semibold">{item.field}</span>
-</div>
-
-<div className="flex justify-between text-sm mb-2">
-<span className="text-zinc-400">Output</span>
-<span className="font-bold">{item.output_kerja}</span>
+<div className="font-semibold mb-2">
+{item.jenis_pekerjaan}
 </div>
 
 <div className="flex justify-between text-sm">
-<span className="text-zinc-400">Satuan</span>
-<span>{item.satuan_output}</span>
+
+<div>
+<p className="text-xs text-zinc-400">Output</p>
+<p className="font-bold">{item.output_kerja}</p>
+</div>
+
+<div>
+<p className="text-xs text-zinc-400">Satuan</p>
+<p>{item.satuan_output}</p>
+</div>
+
 </div>
 
 </div>
@@ -399,7 +399,7 @@ className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-3"
 
 {/* DESKTOP TABLE */}
 
-<div className="hidden md:block bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+<div className="hidden md:block bg-zinc-900 border border-zinc-800 rounded-xl p-6 mt-8">
 
 <h2 className="font-semibold mb-4 text-center">
 Monitoring Data
@@ -410,13 +410,11 @@ Monitoring Data
 <thead className="border-b border-zinc-800 text-zinc-400">
 
 <tr>
-
 <th className="py-3">Tanggal</th>
 <th>Jenis</th>
 <th>Field</th>
 <th>Output</th>
 <th>Satuan</th>
-
 </tr>
 
 </thead>
@@ -424,6 +422,7 @@ Monitoring Data
 <tbody>
 
 {filteredData.map(item=>(
+
 <tr
 key={item.id}
 className="border-b border-zinc-800 hover:bg-zinc-800/40"
@@ -431,16 +430,39 @@ className="border-b border-zinc-800 hover:bg-zinc-800/40"
 
 <td className="py-3">{item.tanggal}</td>
 <td>{item.jenis_pekerjaan}</td>
-<td className="font-medium">{item.field}</td>
-<td className="font-semibold">{item.output_kerja}</td>
+<td>{item.field}</td>
+<td>{item.output_kerja}</td>
 <td>{item.satuan_output}</td>
 
 </tr>
+
 ))}
 
 </tbody>
 
 </table>
+
+</div>
+
+{/* MOBILE BOTTOM NAV */}
+
+<div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950 border-t border-zinc-800">
+
+<div className="grid grid-cols-3 text-center text-xs">
+
+<div className="py-3 text-green-400">
+Dashboard
+</div>
+
+<div className="py-3 text-zinc-400">
+Monitoring
+</div>
+
+<div className="py-3 text-zinc-400">
+Analytics
+</div>
+
+</div>
 
 </div>
 
