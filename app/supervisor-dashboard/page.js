@@ -23,8 +23,7 @@ const [mtd,setMTD] = useState(0)
 const [ytd,setYTD] = useState(0)
 const [totalRecords,setTotalRecords] = useState(0)
 
-const [fieldSummary,setFieldSummary] = useState({})
-const [jenisSummary,setJenisSummary] = useState({})
+const [analytics,setAnalytics] = useState({})
 
 useEffect(()=>{
 init()
@@ -62,10 +61,7 @@ const {data,error} = await supabase
 .select("*")
 .order("tanggal",{ascending:false})
 
-if(error){
-console.log(error)
-return
-}
+if(error) return
 
 setRecords(data)
 
@@ -142,21 +138,43 @@ setTotalRecords(data.length)
 
 function calculateAnalytics(data){
 
-const field = {}
-const jenis = {}
+const today = new Date().toISOString().split("T")[0]
+const now = new Date()
+
+const startMonth = new Date(now.getFullYear(),now.getMonth(),1)
+const startYear = new Date(now.getFullYear(),0,1)
+
+const result = {}
 
 data.forEach(r=>{
 
-if(!field[r.field]) field[r.field] = 0
-field[r.field] += Number(r.output_kerja)
+if(!result[r.field]) result[r.field] = {}
 
-if(!jenis[r.jenis_pekerjaan]) jenis[r.jenis_pekerjaan] = 0
-jenis[r.jenis_pekerjaan] += Number(r.output_kerja)
+if(!result[r.field][r.jenis_pekerjaan]){
+result[r.field][r.jenis_pekerjaan] = {
+hi:0,
+mtd:0,
+ytd:0
+}
+}
+
+const date = new Date(r.tanggal)
+
+if(r.tanggal === today){
+result[r.field][r.jenis_pekerjaan].hi += Number(r.output_kerja)
+}
+
+if(date >= startMonth){
+result[r.field][r.jenis_pekerjaan].mtd += Number(r.output_kerja)
+}
+
+if(date >= startYear){
+result[r.field][r.jenis_pekerjaan].ytd += Number(r.output_kerja)
+}
 
 })
 
-setFieldSummary(field)
-setJenisSummary(jenis)
+setAnalytics(result)
 
 }
 
@@ -277,35 +295,62 @@ className="bg-zinc-900 border border-zinc-700 p-2 rounded"
 
 </div>
 
-{/* OUTPUT PER JENIS */}
+{/* OUTPUT PER FIELD + JENIS */}
 
 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
 
-<h2 className="font-semibold mb-4">
-📊 Output per Jenis
+<h2 className="font-semibold mb-6">
+Output Monitoring
 </h2>
 
-{Object.keys(jenisSummary).map(k=>(
-<div key={k} className="flex justify-between border-b border-zinc-800 py-2">
-<span>{k}</span>
-<span>{jenisSummary[k]}</span>
-</div>
-))}
+{Object.keys(analytics).map(field=>(
+<div key={field} className="mb-6">
+
+<h3 className="font-bold text-lg mb-3">
+{field}
+</h3>
+
+<div className="space-y-2">
+
+{Object.keys(analytics[field]).map(jenis=>{
+
+const data = analytics[field][jenis]
+
+return(
+
+<div
+key={jenis}
+className="flex justify-between items-center bg-zinc-800/40 p-3 rounded-lg"
+>
+
+<span className="font-medium">
+{jenis}
+</span>
+
+<div className="flex gap-4 text-sm">
+
+<span className="bg-zinc-700 px-3 py-1 rounded">
+HI : {data.hi}
+</span>
+
+<span className="bg-zinc-700 px-3 py-1 rounded">
+MTD : {data.mtd}
+</span>
+
+<span className="bg-zinc-700 px-3 py-1 rounded">
+YTD : {data.ytd}
+</span>
 
 </div>
 
-{/* OUTPUT PER FIELD */}
+</div>
 
-<div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
+)
 
-<h2 className="font-semibold mb-4">
-🗺 Output per Field
-</h2>
+})}
 
-{Object.keys(fieldSummary).map(k=>(
-<div key={k} className="flex justify-between border-b border-zinc-800 py-2">
-<span>{k}</span>
-<span>{fieldSummary[k]}</span>
+</div>
+
 </div>
 ))}
 
