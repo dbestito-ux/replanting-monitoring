@@ -217,7 +217,7 @@ return(
 
 <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-zinc-950 border-b border-zinc-800 px-4 py-3 flex justify-between items-center">
 
-<h1 className="text-lg font-bold tracking-wide">
+<h1 className="text-lg font-bold">
 Replanting Monitoring
 </h1>
 
