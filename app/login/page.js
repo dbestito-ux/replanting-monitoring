@@ -17,7 +17,7 @@ export default function Login() {
     setLoading(true);
     setError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -25,6 +25,30 @@ export default function Login() {
     if (error) {
       setError("Email atau password salah");
       setLoading(false);
+      return;
+    }
+
+    // ambil user login
+    const user = data.user;
+
+    // ambil role dari tabel profiles
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError) {
+      console.error(profileError);
+      router.push("/dashboard");
+      return;
+    }
+
+    // redirect berdasarkan role
+    if (profile.role === "admin") {
+      router.push("/dashboard");
+    } else if (profile.role === "supervisor") {
+      router.push("/supervisor-dashboard");
     } else {
       router.push("/dashboard");
     }
